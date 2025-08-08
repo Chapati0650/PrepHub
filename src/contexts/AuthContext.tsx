@@ -143,7 +143,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
     initializeAuth();
 
-supabase.auth.onAuthStateChange((event, session) => {
+    const { data: { subscription } } = supabase.auth.onAuthStateChange((event, session) => {
   console.log('📣 Auth state changed:', event);
 
   if (event === 'SIGNED_IN' && session?.user) {
@@ -160,7 +160,7 @@ supabase.auth.onAuthStateChange((event, session) => {
     setUser(null);
     navigate('/login');
   }
-});
+    });
 
 
     return () => subscription.unsubscribe();
