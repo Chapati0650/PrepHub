@@ -143,18 +143,25 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
     initializeAuth();
 
-    const { data: { subscription } } = supabase.auth.onAuthStateChange(
-      async (event, session) => {
-        console.log("📣 Auth state changed:", event);
-        if (event === 'SIGNED_IN' && session?.user) {
-          const userProfile = await fetchUserProfile(session.user);
-          setUser(userProfile);
-        } else if (event === 'SIGNED_OUT') {
-          setUser(null);
-        }
-        setLoading(false);
-      }
-    );
+supabase.auth.onAuthStateChange((event, session) => {
+  console.log('📣 Auth state changed:', event);
+
+  if (event === 'SIGNED_IN' && session?.user) {
+    // ✅ Navigate instantly so the user sees the dashboard immediately
+    navigate('/dashboard');
+
+    // Fetch profile in background — this won't block the navigation
+    fetchUserProfile(session.user).then((profile) => {
+      setUser(profile); // Update state with the full profile once ready
+    });
+  }
+
+  if (event === 'SIGNED_OUT') {
+    setUser(null);
+    navigate('/login');
+  }
+});
+
 
     return () => subscription.unsubscribe();
   }, []);
