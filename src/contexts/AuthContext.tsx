@@ -37,74 +37,82 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   const navigate = useNavigate();
 
   const fetchUserProfile = async (authUser: User) => {
-    console.log('📥 Fetching profile for user:', authUser.id, authUser.email);
-    try {
-      const { data: profile, error } = await supabase
-        .from('users')
-        .select('name, picture, is_premium')
-        .eq('id', authUser.id)
-        .maybeSingle();
+  console.log('📥 Fetching profile for user:', authUser.id, authUser.email);
 
-      if (error) {
-        console.error("❌ Failed to fetch profile:", error.message);
-        // Continue with basic user info even if profile fetch fails
-      } else {
-        console.log("✅ Fetched user profile:", profile);
-      }
+  try {
+    // Try fetching the profile
+    const { data: profile, error } = await supabase
+      .from('users')
+      .select('name, picture, is_premium')
+      .eq('id', authUser.id)
+      .maybeSingle();
 
-      // If no profile exists, create one
-      if (!profile) {
-        console.log('👤 No profile found, creating new profile...');
-        const { data: insertData, error: insertError } = await supabase
-          .from('users')
-          .upsert({
-            id: authUser.id,
-            email: authUser.email!,
-            name: authUser.user_metadata?.name || '',
-            picture: authUser.user_metadata?.picture || '',
-            provider: 'email',
-            is_premium: false
-          })
-          .select('name, picture, is_premium')
-          .single();
-
-        if (insertError) {
-          console.error('❌ Error upserting user profile:', insertError);
-        } else {
-          console.log('✅ User profile upserted successfully:', insertData);
-          // Use the newly created/updated profile data
-          const userProfile = {
-            id: authUser.id,
-            email: authUser.email!,
-            name: insertData?.name || authUser.user_metadata?.name,
-            picture: insertData?.picture || authUser.user_metadata?.picture,
-            is_premium: insertData?.is_premium || false,
-          };
-          return userProfile;
-        }
-      }
-
-      const userProfile = {
-        id: authUser.id,
-        email: authUser.email!,
-        name: profile?.name || authUser.user_metadata?.name,
-        picture: profile?.picture || authUser.user_metadata?.picture,
-        is_premium: profile?.is_premium || false,
-      };
-
-      console.log('👤 Final user profile:', userProfile);
-      return userProfile;
-    } catch (error) {
-      console.error('❌ Error fetching user profile:', error);
+    if (error) {
+      console.error("❌ Failed to fetch profile:", error.message);
+      // Return basic info immediately so login can proceed
       return {
         id: authUser.id,
         email: authUser.email!,
-        name: authUser.user_metadata?.name,
-        picture: authUser.user_metadata?.picture,
+        name: authUser.user_metadata?.name || '',
+        picture: authUser.user_metadata?.picture || '',
         is_premium: false
       };
     }
-  };
+
+    if (profile) {
+      console.log("✅ Fetched user profile:", profile);
+      return {
+        id: authUser.id,
+        email: authUser.email!,
+        name: profile.name || authUser.user_metadata?.name || '',
+        picture: profile.picture || authUser.user_metadata?.picture || '',
+        is_premium: profile.is_premium || false
+      };
+    }
+
+    // No profile found — create it asynchronously without blocking redirect
+    console.log('👤 No profile found, creating new profile in background...');
+    supabase
+      .from('users')
+      .upsert({
+        id: authUser.id,
+        email: authUser.email!,
+        name: authUser.user_metadata?.name || '',
+        picture: authUser.user_metadata?.picture || '',
+        provider: 'email',
+        is_premium: false
+      })
+      .select('name, picture, is_premium')
+      .single()
+      .then(({ data, error }) => {
+        if (error) {
+          console.error('❌ Error upserting user profile:', error);
+        } else {
+          console.log('✅ User profile upserted successfully:', data);
+        }
+      });
+
+    // Still return basic info immediately
+    return {
+      id: authUser.id,
+      email: authUser.email!,
+      name: authUser.user_metadata?.name || '',
+      picture: authUser.user_metadata?.picture || '',
+      is_premium: false
+    };
+
+  } catch (error) {
+    console.error('❌ Unexpected error fetching profile:', error);
+    return {
+      id: authUser.id,
+      email: authUser.email!,
+      name: authUser.user_metadata?.name || '',
+      picture: authUser.user_metadata?.picture || '',
+      is_premium: false
+    };
+  }
+};
+
 
   const refreshUser = async () => {
     const { data: { user: authUser } } = await supabase.auth.getUser();
