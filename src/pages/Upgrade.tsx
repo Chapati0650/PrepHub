@@ -99,7 +99,7 @@ const Upgrade = () => {
             </span>
           </h1>
           <p className="text-xl md:text-2xl text-gray-600 max-w-3xl mx-auto">
-            Get unlimited access to all features and maximize your SAT Math score
+            Get exclusive access to the 300 SAT math questions most likely to show up on your next SAT
           </p>
         </div>
 
