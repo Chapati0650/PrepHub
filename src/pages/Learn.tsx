@@ -46,10 +46,10 @@ const Learn = () => {
           {/* YouTube Channel Button */}
           <div className="mt-8">
             <a
-              href="https://www.youtube.com/@PrepHub-SAT"
+              href="https://www.youtube.com/@prephubtp"
               target="_blank"
               rel="noopener noreferrer"
-              className="inline-flex items-center bg-red-600 text-white px-8 py-4 rounded-2xl font-bold text-lg hover:bg-red-700 hover:shadow-xl transition-all duration-300 group"
+              className="inline-flex items-center bg-gradient-primary text-white px-8 py-4 rounded-2xl font-bold text-lg hover:shadow-xl transition-all duration-300 group"
             >
               <Play className="h-6 w-6 mr-3 group-hover:scale-110 transition-transform" />
               Visit Our YouTube Channel
