@@ -27,6 +27,14 @@ const Learn = () => {
       description: 'Essential last-minute review of the most challenging SAT Math concepts',
       duration: '18:20',
       category: 'Test Prep'
+    },
+    {
+      title: 'Module 2 SAT Math You NEED To Know',
+      url: 'https://www.youtube.com/watch?v=x9a-s5VCVto&t=30s',
+      embedId: 'x9a-s5VCVto',
+      description: 'Master the essential concepts for SAT Math Module 2',
+      duration: '16:45',
+      category: 'Module 2'
     }
   ];
 
