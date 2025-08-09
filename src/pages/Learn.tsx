@@ -11,6 +11,14 @@ const Learn = () => {
       description: 'Learn advanced calculator strategies for the most challenging SAT Math problems',
       duration: '15:30',
       category: 'Calculator Strategies'
+    },
+    {
+      title: 'The Hardest NEW SAT Math Questions You NEED To Know',
+      url: 'https://www.youtube.com/watch?v=U0OXvzhscbs',
+      embedId: 'U0OXvzhscbs',
+      description: 'Master the most challenging new question types on the digital SAT',
+      duration: '12:45',
+      category: 'Advanced Problems'
     }
   ];
 
