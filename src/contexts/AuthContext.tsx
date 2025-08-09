@@ -147,12 +147,17 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   console.log('📣 Auth state changed:', event);
 
   if (event === 'SIGNED_IN' && session?.user) {
-    // ✅ Navigate instantly so the user sees the dashboard immediately
-    navigate('/dashboard');
+    // Only navigate to dashboard if we're currently on login/register pages
+    const currentPath = window.location.pathname;
+    const shouldRedirect = currentPath === '/login' || currentPath === '/register' || currentPath === '/';
+    
+    if (shouldRedirect) {
+      navigate('/dashboard');
+    }
 
-    // Fetch profile in background — this won't block the navigation
+    // Fetch profile in background
     fetchUserProfile(session.user).then((profile) => {
-      setUser(profile); // Update state with the full profile once ready
+      setUser(profile);
     });
   }
 
