@@ -121,6 +121,14 @@ const Upgrade = () => {
                 <div className="text-gray-600 text-sm">per month</div>
               </div>
 
+              {/* Additional text space above button */}
+              <div className="mb-6 text-center">
+                <p className="text-gray-700 text-sm leading-relaxed">
+                  Add your custom text here. This space is perfect for additional messaging, 
+                  special offers, or important information you want users to see before upgrading.
+                </p>
+              </div>
+
               <button
                 onClick={handleUpgrade}
                 disabled={loading}
