@@ -2,7 +2,6 @@ import React, { useState } from 'react';
 import { Link } from 'react-router-dom';
 import { Mail, Lock, Eye, EyeOff, User, Sparkles, ArrowRight, Star } from 'lucide-react';
 import { useAuth } from '../contexts/AuthContext';
-import GoogleSignIn from '../components/GoogleSignIn';
 
 const Register = () => {
   const [email, setEmail] = useState('');
@@ -13,7 +12,7 @@ const Register = () => {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
   const [showConfirmation, setShowConfirmation] = useState(false);
-  const { register, loginWithGoogle } = useAuth();
+  const { register } = useAuth();
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -61,36 +60,6 @@ const Register = () => {
         setLoading(false);
       }
     }
-  };
-
-  const handleGoogleSuccess = async (credential: string) => {
-    setLoading(true);
-    setError('');
-    
-    try {
-      console.log('Processing Google registration...');
-      await loginWithGoogle(credential);
-      console.log('Google registration completed successfully');
-      
-      // Additional fallback navigation
-      setTimeout(() => {
-        if (window.location.pathname === '/register') {
-          console.log('Still on register page, forcing navigation...');
-          window.location.href = '/dashboard';
-        }
-      }, 1000);
-    } catch (err) {
-      console.error('Google registration error:', err);
-      const errorMessage = err instanceof Error ? err.message : 'Google sign-up failed';
-      setError(errorMessage);
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  const handleGoogleError = () => {
-    console.error('Google sign-up button error');
-    setError('Google sign-up is temporarily unavailable. Please try signing in with email and password, or try again later.');
   };
 
   if (showConfirmation) {
@@ -177,24 +146,6 @@ const Register = () => {
 
           {/* Registration Form */}
           <div className="glass rounded-3xl shadow-strong p-8 animate-scale-in">
-            {/* Google Sign Up */}
-            <div className="mb-6">
-              <GoogleSignIn
-                onSuccess={handleGoogleSuccess}
-                onError={handleGoogleError}
-                className="w-full"
-              />
-            </div>
-
-            <div className="relative mb-6">
-              <div className="absolute inset-0 flex items-center">
-                <div className="w-full border-t border-white/20"></div>
-              </div>
-              <div className="relative flex justify-center text-sm">
-                <span className="px-4 bg-transparent text-white/60">or sign up with email</span>
-              </div>
-            </div>
-
             <form className="space-y-6" onSubmit={handleSubmit}>
               {error && (
                 <div className="bg-red-500/20 border border-red-400/30 text-red-200 px-4 py-3 rounded-2xl animate-slide-up">

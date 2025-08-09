@@ -16,7 +16,6 @@ interface AuthContextType {
   loading: boolean;
   login: (email: string, password: string) => Promise<{ error?: string }>;
   register: (email: string, password: string, name?: string) => Promise<{ error?: string; requiresConfirmation?: boolean; message?: string }>;
-  loginWithGoogle: (credential: string) => Promise<void>;
   logout: () => Promise<void>;
   refreshUser: () => Promise<void>;
 }
@@ -333,86 +332,11 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     setUser(null);
   };
 
-  const loginWithGoogle = async (credential: string) => {
-    try {
-      console.log('Starting Google authentication...');
-      // Decode the JWT credential to get user info
-      const payload = JSON.parse(atob(credential.split('.')[1]));
-      console.log('Decoded Google payload:', { email: payload.email, name: payload.name });
-      
-      // Sign in with Google using the ID token
-      const { data, error } = await supabase.auth.signInWithIdToken({
-        provider: 'google',
-        token: credential,
-      });
-
-      if (error) {
-        console.error('Google sign-in error:', error);
-        throw new Error(`Google sign-in failed: ${error.message}`);
-      }
-
-      console.log('Supabase auth successful:', data.user?.email);
-
-      if (data.user) {
-        // Check if user profile exists, create if not
-        const { data: existingProfile } = await supabase
-          .from('users')
-          .select('*')
-          .eq('id', data.user.id)
-          .single();
-
-        console.log('Existing profile check:', existingProfile ? 'Found' : 'Not found');
-
-        if (!existingProfile) {
-          console.log('Creating new user profile...');
-          // Create user profile for new Google users
-          const { error: insertError } = await supabase.from('users').upsert({
-            id: data.user.id,
-            email: data.user.email!,
-            name: payload.name || data.user.user_metadata?.name || '',
-            picture: payload.picture || data.user.user_metadata?.picture || '',
-            provider: 'google',
-            is_premium: false
-          });
-
-          if (insertError) {
-            console.error('Error creating user profile:', insertError);
-            // Don't throw error if profile creation fails, continue with auth
-          }
-        }
-
-        console.log('Fetching user profile...');
-        const userProfile = await fetchUserProfile(data.user);
-        console.log('User profile fetched:', userProfile);
-        setUser(userProfile);
-        console.log('Navigating to dashboard...');
-        
-        // Wait for state to be set, then navigate
-        setTimeout(() => {
-          console.log('Attempting navigation to dashboard...');
-          navigate('/dashboard');
-          
-          // Fallback: if React Router navigation doesn't work, use window.location
-          setTimeout(() => {
-            if (window.location.pathname !== '/dashboard') {
-              console.log('React Router navigation failed, using window.location...');
-              window.location.href = '/dashboard';
-            }
-          }, 500);
-        }, 100);
-      }
-    } catch (error) {
-      console.error('Google authentication error:', error);
-      throw error instanceof Error ? error : new Error('Google sign-in failed. Please try again.');
-    }
-  };
-
   const value = {
     user,
     loading,
     login,
     register,
-    loginWithGoogle,
     logout,
     refreshUser,
   };

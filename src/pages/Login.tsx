@@ -2,7 +2,6 @@ import React, { useState } from 'react';
 import { Link } from 'react-router-dom';
 import { Mail, Lock, Eye, EyeOff, LogIn, ArrowRight, Sparkles } from 'lucide-react';
 import { useAuth } from '../contexts/AuthContext';
-import GoogleSignIn from '../components/GoogleSignIn';
 
 const Login = () => {
   const [email, setEmail] = useState('');
@@ -10,7 +9,7 @@ const Login = () => {
   const [showPassword, setShowPassword] = useState(false);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
-  const { login, loginWithGoogle } = useAuth();
+  const { login } = useAuth();
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -29,36 +28,6 @@ const Login = () => {
     } finally {
       setLoading(false);
     }
-  };
-
-  const handleGoogleSuccess = async (credential: string) => {
-    setLoading(true);
-    setError('');
-    
-    try {
-      console.log('Processing Google login...');
-      await loginWithGoogle(credential);
-      console.log('Google login completed successfully');
-      
-      // Additional fallback navigation
-      setTimeout(() => {
-        if (window.location.pathname === '/login') {
-          console.log('Still on login page, forcing navigation...');
-          window.location.href = '/dashboard';
-        }
-      }, 1000);
-    } catch (err) {
-      console.error('Google login error:', err);
-      const errorMessage = err instanceof Error ? err.message : 'Google sign-in failed';
-      setError(errorMessage);
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  const handleGoogleError = () => {
-    console.error('Google sign-in button error');
-    setError('Google sign-in is temporarily unavailable. Please try signing in with email and password, or try again later.');
   };
 
   return (
@@ -91,24 +60,6 @@ const Login = () => {
 
           {/* Login Form */}
           <div className="glass rounded-3xl shadow-strong p-8 animate-scale-in">
-            {/* Google Sign In */}
-            <div className="mb-6">
-              <GoogleSignIn
-                onSuccess={handleGoogleSuccess}
-                onError={handleGoogleError}
-                className="w-full"
-              />
-            </div>
-
-            <div className="relative mb-6">
-              <div className="absolute inset-0 flex items-center">
-                <div className="w-full border-t border-white/20"></div>
-              </div>
-              <div className="relative flex justify-center text-sm">
-                <span className="px-4 bg-transparent text-white/60">or continue with email</span>
-              </div>
-            </div>
-
             <form className="space-y-6" onSubmit={handleSubmit}>
               {error && (
                 <div className="bg-red-500/20 border border-red-400/30 text-red-200 px-4 py-3 rounded-2xl animate-slide-up">
