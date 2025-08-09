@@ -39,6 +39,7 @@ serve(async (req) => {
         
         if (userId) {
           // Update user to premium status
+          console.log(`Updating user ${userId} to premium status`)
           const { error } = await supabase
             .from('users')
             .update({ is_premium: true })
@@ -47,6 +48,21 @@ serve(async (req) => {
           if (error) {
             console.error('Error updating user premium status:', error)
             throw error
+          } else {
+            console.log(`Successfully updated user ${userId} to premium`)
+            
+            // Verify the update worked
+            const { data: updatedUser, error: fetchError } = await supabase
+              .from('users')
+              .select('is_premium')
+              .eq('id', userId)
+              .single()
+            
+            if (fetchError) {
+              console.error('Error verifying user update:', fetchError)
+            } else {
+              console.log(`User ${userId} premium status verified:`, updatedUser.is_premium)
+            }
           }
 
           console.log(`User ${userId} upgraded to premium`)

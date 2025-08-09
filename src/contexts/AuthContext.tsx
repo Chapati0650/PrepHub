@@ -114,10 +114,15 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
 
   const refreshUser = async () => {
+    console.log('🔄 Refreshing user data...');
     const { data: { user: authUser } } = await supabase.auth.getUser();
     if (authUser) {
+      console.log('👤 Auth user found, fetching profile...');
       const userProfile = await fetchUserProfile(authUser);
+      console.log('👤 Updated user profile:', userProfile);
       setUser(userProfile);
+    } else {
+      console.log('❌ No auth user found during refresh');
     }
   };
 

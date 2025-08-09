@@ -62,8 +62,11 @@ const Dashboard = () => {
       setShowPaymentSuccess(true);
       // Clean up URL
       window.history.replaceState({}, document.title, window.location.pathname);
-      // Refresh user data to get updated premium status
-      refreshUser();
+      // Refresh user data to get updated premium status with delay
+      console.log('💳 Payment success detected, refreshing user data...');
+      setTimeout(() => {
+        refreshUser();
+      }, 2000); // Give webhook time to process
     }
 
     const loadDashboardData = async () => {

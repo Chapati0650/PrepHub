@@ -58,6 +58,12 @@ const Practice = () => {
   const navigate = useNavigate();
   const [error, setError] = useState('');
 
+  // Debug user premium status
+  useEffect(() => {
+    console.log('🏃 Practice page - Current user:', user);
+    console.log('🏃 Practice page - Is premium:', user?.is_premium);
+  }, [user]);
+
   const topics = [
     {
       name: 'Algebra',
