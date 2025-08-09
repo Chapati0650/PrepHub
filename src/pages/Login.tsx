@@ -49,7 +49,7 @@ const Login = () => {
             </div>
             <h2 className="text-4xl md:text-5xl font-bold text-white mb-4">
               Sign In to
-              <span className="block bg-gradient-warm bg-clip-text text-transparent animate-shimmer">
+              <span className="block bg-gradient-warm bg-clip-text text-transparent">
                 PrepHub
               </span>
             </h2>

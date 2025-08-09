@@ -135,7 +135,7 @@ const Register = () => {
             </div>
             <h2 className="text-4xl md:text-5xl font-bold text-white mb-4">
               Create Your
-              <span className="block bg-gradient-warm bg-clip-text text-transparent animate-shimmer">
+              <span className="block bg-gradient-warm bg-clip-text text-transparent">
                 Account
               </span>
             </h2>
