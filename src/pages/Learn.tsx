@@ -3,39 +3,6 @@ import { BookOpen, Calculator, TrendingUp, Target, Clock, Award, Play, ExternalL
 import Navbar from '../components/Navbar';
 
 const Learn = () => {
-  const strategies = [
-    {
-      title: 'Time Management',
-      description: 'Learn to allocate time effectively across different question types',
-      tips: [
-        'Spend no more than 1.5 minutes on easy questions',
-        'Allow 2-3 minutes for medium difficulty questions',
-        'Reserve 3-4 minutes for challenging problems',
-        'Skip and return to difficult questions if needed'
-      ]
-    },
-    {
-      title: 'Problem-Solving Approach',
-      description: 'Develop a systematic approach to tackle any math problem',
-      tips: [
-        'Read the question carefully and identify what\'s being asked',
-        'Determine what information is given',
-        'Choose the most efficient solution method',
-        'Check your answer for reasonableness'
-      ]
-    },
-    {
-      title: 'Calculator Usage',
-      description: 'Maximize efficiency with strategic calculator use',
-      tips: [
-        'Use calculator for complex arithmetic only',
-        'Rely on mental math for simple calculations',
-        'Double-check calculator entries for accuracy',
-        'Practice both calculator and no-calculator sections'
-      ]
-    }
-  ];
-
   const videos = [
     {
       title: 'Solving the HARDEST SAT Math Questions ONLY using Desmos',
