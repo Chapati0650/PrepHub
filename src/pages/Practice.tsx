@@ -267,11 +267,11 @@ const Practice = () => {
                 </button>
               </div>
               
-              <p className="text-gray-600 mb-4">
+              <h1 className="text-gray-600 mb-4">
                 {timedMode
                   ? `Practice with custom timing (${timeUnit === 'min' ? `${timeValue} minute${timeValue !== 1 ? 's' : ''}` : `${secondsPerQuestion} second${secondsPerQuestion !== 1 ? 's' : ''}`} per question)`
                   : 'Coming Soon ;)'}
-              </p>
+              </h1>
               
               {timedMode && (
                 <div className="bg-purple-500/20 border border-purple-300/30 rounded-2xl p-6 animate-slide-up">
