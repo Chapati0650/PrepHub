@@ -19,6 +19,14 @@ const Learn = () => {
       description: 'Master the most challenging new question types on the digital SAT',
       duration: '12:45',
       category: 'Advanced Problems'
+    },
+    {
+      title: 'Last Minute SAT Math - The HARDEST Questions you HAVE to Know',
+      url: 'https://www.youtube.com/watch?v=9FBU89waG60',
+      embedId: '9FBU89waG60',
+      description: 'Essential last-minute review of the most challenging SAT Math concepts',
+      duration: '18:20',
+      category: 'Test Prep'
     }
   ];
 
