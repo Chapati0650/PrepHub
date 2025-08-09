@@ -40,7 +40,7 @@ const Learn = () => {
             </span>
           </h1>
           <p className="text-xl md:text-2xl text-gray-600 max-w-3xl mx-auto">
-            Master essential concepts and proven strategies to excel on the SAT Math section
+            Check out our YouTube Channel for high-quality SAT content below!
           </p>
         </div>
 
