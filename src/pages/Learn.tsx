@@ -30,7 +30,7 @@ const Learn = () => {
     },
     {
       title: 'Module 2 SAT Math You NEED To Know',
-      url: 'https://www.youtube.com/watch?v=x9a-s5VCVto&t=30s',
+      url: 'https://youtu.be/x9a-s5VCVto?si=HolKRQfYBaT-xrti',
       embedId: 'x9a-s5VCVto',
       description: 'Master the essential concepts for SAT Math Module 2',
       duration: '16:45',
@@ -87,7 +87,7 @@ const Learn = () => {
                 {/* Video Thumbnail/Embed */}
                 <div className="relative aspect-video bg-gray-100">
                   <iframe
-                    src={`https://www.youtube.com/embed/${video.embedId}?start=3`}
+                    src={`https://www.youtube.com/embed/${video.embedId}`}
                     title={video.title}
                     className="w-full h-full"
                     frameBorder="0"
