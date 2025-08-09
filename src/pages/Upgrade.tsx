@@ -118,14 +118,7 @@ const Upgrade = () => {
 
         <div className="max-w-md mx-auto mb-12">
           <div className="bg-white border-2 border-blue-200 rounded-3xl p-8 shadow-xl animate-scale-in relative overflow-hidden">
-            {/* Popular Badge */}
-            <div className="absolute top-0 left-1/2 transform -translate-x-1/2 -translate-y-1/2">
-              <div className="bg-gradient-primary text-white px-6 py-2 rounded-full text-sm font-bold">
-                Most Popular
-              </div>
-            </div>
-
-            <div className="text-center pt-4">
+            <div className="text-center">
               <h2 className="text-2xl font-bold text-gray-900 mb-2">Premium Access</h2>
               <div className="mb-6">
                 <span className="text-5xl font-bold text-gray-900">$14</span>
