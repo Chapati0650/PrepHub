@@ -270,7 +270,7 @@ const Practice = () => {
               <p className="text-gray-600 mb-4">
                 {timedMode
                   ? `Practice with custom timing (${timeUnit === 'min' ? `${timeValue} minute${timeValue !== 1 ? 's' : ''}` : `${secondsPerQuestion} second${secondsPerQuestion !== 1 ? 's' : ''}`} per question)`
-                  : 'Practice at your own pace without time pressure'}
+                  : 'Coming Soon ;)'}
               </p>
               
               {timedMode && (
