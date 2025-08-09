@@ -247,10 +247,16 @@ const Practice = () => {
             </div>
 
             {/* Timed Mode */}
-            <div className="bg-white border border-gray-200 rounded-3xl p-8 animate-scale-in shadow-lg" style={{ animationDelay: '0.2s' }}>
+            <div className={`rounded-3xl p-8 animate-scale-in shadow-lg transition-all duration-300 ${
+              timedMode 
+                ? 'bg-purple-50 border-2 border-purple-300' 
+                : 'bg-white border border-gray-200'
+            }`} style={{ animationDelay: '0.2s' }}>
               <div className="flex items-center justify-between mb-6">
                 <div className="flex items-center">
-                  <Clock className="h-6 w-6 mr-3 text-purple-300" />
+                  <Clock className={`h-6 w-6 mr-3 transition-colors ${
+                    timedMode ? 'text-purple-600' : 'text-purple-300'
+                  }`} />
                   <h2 className="text-2xl font-bold text-gray-900">Timed Mode</h2>
                 </div>
                 <button
@@ -267,11 +273,11 @@ const Practice = () => {
                 </button>
               </div>
               
-              <h1 className="text-gray-600 mb-4">
+              <p className="text-gray-600 mb-4">
                 {timedMode 
                   ? 'Practice with time limits to simulate test conditions'
                   : 'Practice at your own pace without time limits'}
-              </h1>
+              </p>
               
               {timedMode && (
                 <div className="bg-purple-50 border border-purple-200 rounded-2xl p-6 animate-slide-up">
