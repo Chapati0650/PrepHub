@@ -277,7 +277,6 @@ const Practice = () => {
                 <div className="bg-purple-500/20 border border-purple-300/30 rounded-2xl p-6 animate-slide-up">
                   <label className="block text-purple-800 font-medium mb-3">
                     Time per Question
-                    Coming Soon ;)
                   </label>
                   <div className="flex items-center gap-3 flex-wrap">
                     <input
