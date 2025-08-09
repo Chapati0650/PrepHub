@@ -42,6 +42,20 @@ const Learn = () => {
           <p className="text-xl md:text-2xl text-gray-600 max-w-3xl mx-auto">
             Check out our YouTube Channel for high-quality SAT content below!
           </p>
+          
+          {/* YouTube Channel Button */}
+          <div className="mt-8">
+            <a
+              href="https://www.youtube.com/@PrepHub-SAT"
+              target="_blank"
+              rel="noopener noreferrer"
+              className="inline-flex items-center bg-red-600 text-white px-8 py-4 rounded-2xl font-bold text-lg hover:bg-red-700 hover:shadow-xl transition-all duration-300 group"
+            >
+              <Play className="h-6 w-6 mr-3 group-hover:scale-110 transition-transform" />
+              Visit Our YouTube Channel
+              <ExternalLink className="h-5 w-5 ml-3 group-hover:translate-x-1 transition-transform" />
+            </a>
+          </div>
         </div>
 
         {/* Video Tutorials Section */}
