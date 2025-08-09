@@ -271,21 +271,6 @@ const Register = () => {
             </form>
           </div>
 
-          {/* Benefits */}
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mt-8">
-            <div className="glass rounded-2xl p-4 text-center animate-scale-in" style={{ animationDelay: '0.1s' }}>
-              <div className="text-2xl mb-2">🎯</div>
-              <div className="text-white/80 text-sm font-medium">Targeted Practice</div>
-            </div>
-            <div className="glass rounded-2xl p-4 text-center animate-scale-in" style={{ animationDelay: '0.2s' }}>
-              <div className="text-2xl mb-2">📈</div>
-              <div className="text-white/80 text-sm font-medium">Track Progress</div>
-            </div>
-            <div className="glass rounded-2xl p-4 text-center animate-scale-in" style={{ animationDelay: '0.3s' }}>
-              <div className="text-2xl mb-2">🏆</div>
-              <div className="text-white/80 text-sm font-medium">Achieve Goals</div>
-            </div>
-          </div>
         </div>
       </div>
     </div>
