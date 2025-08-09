@@ -126,31 +126,6 @@ const Learn = () => {
           </div>
         </div>
 
-        {/* Strategies Section */}
-        <div className="mb-16">
-          <h2 className="text-3xl font-bold text-gray-900 mb-8 text-center">Test-Taking Strategies</h2>
-          <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
-            {strategies.map((strategy, index) => (
-              <div 
-                key={strategy.title}
-                className="bg-white border border-gray-200 rounded-3xl p-8 hover:shadow-xl transition-all duration-300 card-hover animate-scale-in"
-                style={{ animationDelay: `${index * 0.1}s` }}
-              >
-                <h3 className="text-xl font-bold text-gray-900 mb-4">{strategy.title}</h3>
-                <p className="text-gray-600 mb-6">{strategy.description}</p>
-                <ul className="space-y-3">
-                  {strategy.tips.map((tip, tipIndex) => (
-                    <li key={tipIndex} className="flex items-start text-sm text-gray-700">
-                      <div className="w-2 h-2 bg-gradient-primary rounded-full mr-3 mt-2 flex-shrink-0"></div>
-                      <span>{tip}</span>
-                    </li>
-                  ))}
-                </ul>
-              </div>
-            ))}
-          </div>
-        </div>
-
         {/* CTA Section */}
         <div className="bg-gradient-primary rounded-3xl p-8 md:p-12 text-center animate-scale-in">
           <h2 className="text-3xl md:text-4xl font-bold text-white mb-6">
