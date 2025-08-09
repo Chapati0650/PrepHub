@@ -102,7 +102,7 @@ export const QuestionProvider: React.FC<QuestionProviderProps> = ({ children }) 
   const { user } = useAuth();
 
   const generateQuestions = async (settings: QuestionSettings): Promise<QuestionData[]> => {
-    const isPremiumUser = user?.isPremium;
+    const isPremiumUser = user?.is_premium;
     // Determine which access levels are allowed based on user's premium status
     const allowedAccessLevels: ('free' | 'premium')[] = isPremiumUser ? ['free', 'premium'] : ['free'];
     // Determine the maximum number of questions a user can request

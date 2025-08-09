@@ -93,7 +93,7 @@ const Practice = () => {
 
     setError('');
     // Adjust question count based on user's premium status (use it!)
-    const actualQuestionCount = user?.isPremium ? questionCount : Math.min(questionCount, 30);
+    const actualQuestionCount = user?.is_premium ? questionCount : Math.min(questionCount, 30);
 
     navigate('/generator', {
       state: {
@@ -202,7 +202,7 @@ const Practice = () => {
                 <div className="relative">
                   {/* Max questions based on premium status */}
                   {(() => {
-                    const maxQuestions = user?.isPremium ? 300 : 30;
+                    const maxQuestions = user?.is_premium ? 300 : 30;
                     const fillPercent = ((questionCount - 1) / (20 - 1)) * 100;
                     return (
                       <>
@@ -220,7 +220,7 @@ const Practice = () => {
                           <span>10</span> {/* Midpoint of slider (1-20) */}
                           <span>20</span> {/* Max value of slider */}
                         </div>
-                        {!user?.isPremium && (
+                        {!user?.is_premium && (
                           <p className="mt-3 text-xs text-gray-500">
                             Free accounts capped at 30 questions. Premium unlocks 300.
                           </p>
@@ -230,7 +230,7 @@ const Practice = () => {
                   })()}
                 </div>
                 {/* Message for free users */}
-                {!user?.isPremium && (
+                {!user?.is_premium && (
                   <div className="bg-yellow-500/20 border border-yellow-300/30 rounded-2xl p-4 mt-6">
                     <p className="text-yellow-800 text-sm">
                       You are currently on a free account, limited to 30 questions. Upgrade to Premium to access all 300 questions!
