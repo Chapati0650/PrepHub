@@ -104,6 +104,17 @@ const Upgrade = () => {
         </div>
 
         {/* Pricing Card */}
+        {/* Custom Text Section Above Pricing */}
+        <div className="max-w-4xl mx-auto mb-8 text-center animate-scale-in">
+          <div className="bg-gray-50 border border-gray-200 rounded-2xl p-6">
+            <p className="text-gray-700 text-lg leading-relaxed">
+              Add your custom text here. This space is perfect for additional messaging, 
+              special offers, or important information you want users to see before they 
+              see the pricing details.
+            </p>
+          </div>
+        </div>
+
         <div className="max-w-md mx-auto mb-12">
           <div className="bg-white border-2 border-blue-200 rounded-3xl p-8 shadow-xl animate-scale-in relative overflow-hidden">
             {/* Popular Badge */}
@@ -119,14 +130,6 @@ const Upgrade = () => {
                 <span className="text-5xl font-bold text-gray-900">$14</span>
                 <span className="text-xl text-gray-600">.99</span>
                 <div className="text-gray-600 text-sm">per month</div>
-              </div>
-
-              {/* Additional text space above button */}
-              <div className="mb-6 text-center">
-                <p className="text-gray-700 text-sm leading-relaxed">
-                  Add your custom text here. This space is perfect for additional messaging, 
-                  special offers, or important information you want users to see before upgrading.
-                </p>
               </div>
 
               <button
