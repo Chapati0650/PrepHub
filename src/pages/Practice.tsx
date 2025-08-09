@@ -236,7 +236,10 @@ const Practice = () => {
                       You are currently on a free account, limited to 30 questions. Upgrade to Premium to access all 300 questions!
                     </p>
                     <button
-                      onClick={() => navigate('/upgrade')}
+                      onClick={() => {
+                        navigate('/upgrade');
+                        setTimeout(() => window.scrollTo(0, 0), 100);
+                      }}
                       className="mt-3 bg-gradient-primary text-white px-4 py-2 rounded-xl font-semibold text-sm hover:shadow-lg transition-all duration-300"
                     >
                       Upgrade to Premium
