@@ -17,6 +17,7 @@ const Navbar = () => {
     { path: '/practice', label: 'Practice' },
     { path: '/learn', label: 'Learn' },
     ...(user ? [{ path: '/dashboard', label: 'Dashboard' }] : []),
+    ...(user && !user.is_premium ? [{ path: '/upgrade', label: 'Upgrade' }] : []),
     ...(user && isAdmin() ? [{ path: '/upload', label: 'Upload Questions' }] : []),
   ];
 
