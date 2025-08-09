@@ -41,7 +41,7 @@ interface RecentSession {
 }
 
 const Dashboard = () => {
-  const { user } = useAuth();
+  const { user, refreshUser } = useAuth();
   const { getUserProgress, getTopicMastery, getRecentSessions } = useQuestions();
   
   // Add debugging for dashboard
@@ -62,6 +62,8 @@ const Dashboard = () => {
       setShowPaymentSuccess(true);
       // Clean up URL
       window.history.replaceState({}, document.title, window.location.pathname);
+      // Refresh user data to get updated premium status
+      refreshUser();
     }
 
     const loadDashboardData = async () => {
