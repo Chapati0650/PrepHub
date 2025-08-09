@@ -107,10 +107,11 @@ const Upgrade = () => {
         {/* Custom Text Section Above Pricing */}
         <div className="max-w-4xl mx-auto mb-8 text-center animate-scale-in">
           <div className="bg-gray-50 border border-gray-200 rounded-2xl p-6">
+            <p className="text-gray-700 text-lg leading-relaxed mb-4">
+              If you're targeting a perfect 800 on the Digital SAT Math, this upgrade is made for you! Our exclusive collection of 300 premium SAT Math questions features expert-level practice tailored to the toughest problems most likely to appear on your next test.
+            </p>
             <p className="text-gray-700 text-lg leading-relaxed">
-              Add your custom text here. This space is perfect for additional messaging, 
-              special offers, or important information you want users to see before they 
-              see the pricing details.
+              For those finding the second, more challenging module of the SAT difficult, this feature provides the most advanced concepts, equations, formulas, and proven strategies to help you elevate your score to 750+ and beyond.
             </p>
           </div>
         </div>
