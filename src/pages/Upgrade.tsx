@@ -202,28 +202,6 @@ const Upgrade = () => {
           </div>
         </div>
 
-        {/* FAQ Section */}
-        <div className="mt-16 text-center">
-          <h2 className="text-3xl font-bold text-gray-900 mb-8">Frequently Asked Questions</h2>
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-8 max-w-4xl mx-auto">
-            <div className="text-left">
-              <h3 className="font-bold text-gray-900 mb-2">Is this a subscription?</h3>
-              <p className="text-gray-600">Yes, it's a monthly subscription that you can cancel anytime from your account settings.</p>
-            </div>
-            <div className="text-left">
-              <h3 className="font-bold text-gray-900 mb-2">Can I get a refund?</h3>
-              <p className="text-gray-600">Yes, we offer a 30-day money-back guarantee if you're not satisfied.</p>
-            </div>
-            <div className="text-left">
-              <h3 className="font-bold text-gray-900 mb-2">How quickly do I get access?</h3>
-              <p className="text-gray-600">Premium features are activated immediately after successful payment.</p>
-            </div>
-            <div className="text-left">
-              <h3 className="font-bold text-gray-900 mb-2">Is my payment secure?</h3>
-              <p className="text-gray-600">Yes, all payments are processed securely through Stripe with bank-level encryption.</p>
-            </div>
-          </div>
-        </div>
       </div>
     </div>
   );
