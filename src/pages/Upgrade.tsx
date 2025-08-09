@@ -99,7 +99,7 @@ const Upgrade = () => {
             </span>
           </h1>
           <p className="text-xl md:text-2xl text-gray-600 max-w-3xl mx-auto">
-            Get exclusive access to the 300 SAT math questions most likely to show up on your next SAT
+            Get exclusive access to 300 carefully curated SAT questions that are highly likely to appear on your next test. Upgrade now for only $14.99 and boost your score!
           </p>
         </div>
 
