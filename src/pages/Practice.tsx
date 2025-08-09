@@ -278,7 +278,45 @@ const Practice = () => {
                   <label className="block text-purple-800 font-medium mb-3">
                     Time per Question
                   </label>
-                  <div className="flex items-center gap-3 flex-wrap">
+                  <div className="space-y-4">
+                    <div className="flex items-center gap-3 flex-wrap">
+                      <input
+                        type="number"
+                        min={timeUnit === 'min' ? 0.5 : 10}
+                        max={timeUnit === 'min' ? 10 : 600}
+                        step={timeUnit === 'min' ? 0.5 : 5}
+                        value={timeValue}
+                        onChange={(e) => {
+                          const n = Number(e.target.value);
+                          setTimeValue(Number.isFinite(n) ? n : 2);
+                        }}
+                        className="w-28 p-3 bg-white border border-gray-300 rounded-xl text-gray-900 placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-purple-400 focus:border-transparent"
+                        placeholder="2"
+                      />
+                      <div className="inline-flex rounded-xl overflow-hidden border border-gray-300">
+                        <button
+                          type="button"
+                          onClick={() => setTimeUnit('min')}
+                          className={`px-3 py-2 text-sm ${timeUnit === 'min' ? 'bg-purple-100 text-purple-800 font-semibold' : 'bg-gray-100 text-gray-600'}`}
+                        >
+                          minutes
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => setTimeUnit('sec')}
+                          className={`px-3 py-2 text-sm ${timeUnit === 'sec' ? 'bg-purple-100 text-purple-800 font-semibold' : 'bg-gray-100 text-gray-600'}`}
+                        >
+                          seconds
+                        </button>
+                      </div>
+                    </div>
+                    <div className="text-purple-700 text-sm">
+                      <strong>Recommended:</strong> 2–3 minutes per question
+                    </div>
+                    <div className="text-xs text-purple-600 bg-purple-50 p-2 rounded-lg">
+                      Total session time: <strong>{Math.round((secondsPerQuestion * questionCount) / 60)} minutes</strong>
+                    </div>
+                  </div>
                     <input
                       type="number"
                       min={timeUnit === 'min' ? 0.5 : 10}
