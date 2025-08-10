@@ -130,11 +130,13 @@ const QuestionGenerator = () => {
 
   const handleStartReview = () => {
     console.log('🔍 Starting review mode...');
+    console.log('🔍 Starting review mode...');
     setIsReviewMode(true);
     setCurrentQuestion(0);
     setSelectedAnswer(answers[0]);
     setOpenEndedAnswer(openEndedAnswers[0] || '');
     setShowExplanation(false);
+    console.log('✅ Review mode activated');
     console.log('✅ Review mode activated');
   };
 
@@ -465,7 +467,7 @@ const QuestionGenerator = () => {
                   onClick={() => setShowExplanation(!showExplanation)}
                   className="text-teal-600 hover:text-teal-700 font-medium mb-3"
                 >
-                  {showExplanation ? 'Hide' : 'Show'} Explanation
+                  {showExplanation ? 'Hide Answer' : 'Check Answer'}
                 </button>
               )}
               
