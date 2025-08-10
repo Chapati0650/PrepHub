@@ -365,6 +365,7 @@ const Dashboard = () => {
         )}
 
         {/* Header */}
+            </button>
         <div className="mb-8 animate-slide-up">
           <div className="flex items-center justify-between">
             <div>
