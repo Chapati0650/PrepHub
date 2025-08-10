@@ -186,6 +186,44 @@ const Dashboard = () => {
           </div>
         )}
 
+        {/* Manual Premium Upgrade for Testing */}
+        {!user.is_premium && (
+          <div className="mb-8 bg-yellow-50 border border-yellow-200 rounded-2xl p-6 animate-slide-up">
+            <div className="flex items-center justify-between">
+              <div>
+                <h3 className="text-lg font-semibold text-yellow-900">Testing Mode</h3>
+                <p className="text-yellow-700">Manually upgrade to premium for testing purposes</p>
+              </div>
+              <button
+                onClick={async () => {
+                  try {
+                    const { supabase } = await import('../lib/supabase');
+                    const { error } = await supabase
+                      .from('users')
+                      .update({ is_premium: true })
+                      .eq('id', user.id);
+                    
+                    if (error) {
+                      console.error('Error updating premium status:', error);
+                      alert('Failed to update premium status');
+                    } else {
+                      console.log('✅ Manually updated to premium');
+                      await refreshUser();
+                      window.location.reload();
+                    }
+                  } catch (error) {
+                    console.error('Error:', error);
+                    alert('Failed to update premium status');
+                  }
+                }}
+                className="bg-yellow-600 text-white px-4 py-2 rounded-lg text-sm hover:bg-yellow-700"
+              >
+                Manually Upgrade to Premium
+              </button>
+            </div>
+          </div>
+        )}
+
         {/* Header */}
         <div className="mb-8 animate-slide-up">
           <div className="flex items-center justify-between">
