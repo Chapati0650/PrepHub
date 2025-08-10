@@ -58,7 +58,7 @@ const MathRenderer: React.FC<MathRendererProps> = ({
   // If no math detected, render as plain text
   if (!hasMath) {
     return (
-      <div className={`${className}`} style={{ whiteSpace: 'pre-wrap' }}>
+      <div className={className} style={{ whiteSpace: 'pre-wrap', wordBreak: 'normal' }}>
         {children}
       </div>
     );
@@ -70,14 +70,14 @@ const MathRenderer: React.FC<MathRendererProps> = ({
   try {
     if (inline) {
       return (
-        <span className={className}>
+        <span className={className} style={{ whiteSpace: 'pre-wrap' }}>
           {parts.map((part, index) => {
             if (part.startsWith('$') && part.endsWith('$')) {
               return <InlineMath key={index} math={part.slice(1, -1)} />;
             } else if (part.startsWith('\\(') && part.endsWith('\\)')) {
               return <InlineMath key={index} math={part.slice(2, -2)} />;
             } else {
-              return <span key={index}>{part}</span>;
+              return <span key={index} style={{ whiteSpace: 'pre-wrap' }}>{part}</span>;
             }
           })}
         </span>
@@ -87,7 +87,7 @@ const MathRenderer: React.FC<MathRendererProps> = ({
     // For block math, try to render the entire text as LaTeX if it looks like math
     if (processedText.includes('^') || processedText.includes('_') || processedText.includes('\\')) {
       return (
-        <div className={`${className} math-renderer`}>
+        <div className={`${className} math-renderer`} style={{ whiteSpace: 'pre-wrap' }}>
           <InlineMath math={processedText} />
         </div>
       );
@@ -95,14 +95,14 @@ const MathRenderer: React.FC<MathRendererProps> = ({
 
     // Fallback to mixed rendering
     return (
-      <div className={`${className} math-renderer`}>
+      <div className={`${className} math-renderer`} style={{ whiteSpace: 'pre-wrap' }}>
         {parts.map((part, index) => {
           if (part.startsWith('$') && part.endsWith('$')) {
             return <BlockMath key={index} math={part.slice(1, -1)} />;
           } else if (part.startsWith('\\(') && part.endsWith('\\)')) {
             return <InlineMath key={index} math={part.slice(2, -2)} />;
           } else {
-            return <span key={index} style={{ whiteSpace: 'pre-wrap' }}>{part}</span>;
+            return <span key={index} style={{ whiteSpace: 'pre-wrap', wordBreak: 'normal' }}>{part}</span>;
           }
         })}
       </div>
@@ -111,7 +111,7 @@ const MathRenderer: React.FC<MathRendererProps> = ({
     console.warn('Math rendering error:', error);
     // Fallback to plain text if LaTeX fails
     return (
-      <div className={`${className}`} style={{ whiteSpace: 'pre-wrap' }}>
+      <div className={className} style={{ whiteSpace: 'pre-wrap', wordBreak: 'normal' }}>
         {children}
       </div>
     );
