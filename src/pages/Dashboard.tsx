@@ -188,13 +188,17 @@ const Dashboard = () => {
         )}
 
         {/* Webhook Test Button for Debugging */}
-        {!user.is_premium && (
-          <div className="mb-8 bg-blue-50 border border-blue-200 rounded-2xl p-6 animate-slide-up">
-            <div className="flex items-center justify-between">
-              <div>
-                <h3 className="text-lg font-semibold text-blue-900">Test Webhook Functionality</h3>
-                <p className="text-blue-700">Test if the webhook logic works by simulating a successful payment</p>
-              </div>
+        <div className="mb-8 bg-blue-50 border border-blue-200 rounded-2xl p-6 animate-slide-up">
+          <div className="space-y-4">
+            <div>
+              <h3 className="text-lg font-semibold text-blue-900">Webhook Configuration</h3>
+              <p className="text-blue-700 text-sm">Your Stripe webhook URL should be:</p>
+              <code className="block bg-blue-100 p-2 rounded text-xs mt-2 text-blue-800">
+                https://ehlklfopwpmgkthqmqgd.supabase.co/functions/v1/stripe-webhook
+              </code>
+            </div>
+            
+            <div className="flex gap-4">
               <button
                 onClick={async () => {
                   try {
@@ -223,19 +227,40 @@ const Dashboard = () => {
                 }}
                 className="bg-blue-600 text-white px-4 py-2 rounded-lg text-sm hover:bg-blue-700"
               >
-                Test Webhook
+                Test Webhook Logic
+              </button>
+              
+              <button
+                onClick={async () => {
+                  try {
+                    const response = await fetch('https://ehlklfopwpmgkthqmqgd.supabase.co/functions/v1/stripe-webhook', {
+                      method: 'GET',
+                    });
+                    
+                    if (response.ok) {
+                      alert('Webhook endpoint is reachable!');
+                    } else {
+                      alert(`Webhook endpoint returned: ${response.status} ${response.statusText}`);
+                    }
+                  } catch (error) {
+                    console.error('Webhook ping error:', error);
+                    alert('Webhook endpoint is not reachable');
+                  }
+                }}
+                className="bg-green-600 text-white px-4 py-2 rounded-lg text-sm hover:bg-green-700"
+              >
+                Ping Webhook Endpoint
               </button>
             </div>
           </div>
-        )}
-
-        {/* Manual Premium Upgrade for Testing */}
+        </div>
+        
         {!user.is_premium && (
-          <div className="mb-8 bg-yellow-50 border border-yellow-200 rounded-2xl p-6 animate-slide-up">
+          <div className="mb-8 bg-blue-50 border border-blue-200 rounded-2xl p-6 animate-slide-up">
             <div className="flex items-center justify-between">
               <div>
-                <h3 className="text-lg font-semibold text-yellow-900">Testing Mode</h3>
-                <p className="text-yellow-700">Manually upgrade to premium for testing purposes</p>
+                <h3 className="text-lg font-semibold text-blue-900">Manual Premium Upgrade</h3>
+                <p className="text-blue-700">For testing: manually upgrade to premium status</p>
               </div>
               <button
                 onClick={async () => {
