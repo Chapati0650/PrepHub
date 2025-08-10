@@ -113,16 +113,20 @@ const QuestionGenerator = () => {
   };
 
   const handleComplete = () => {
+    const correctAnswers = questions.filter((question, index) => {
       if (question.questionType === 'multiple_choice') {
         return answers[index] === question.correctAnswer;
+      } else {
         return openEndedAnswers[index] === question.correctAnswerText;
       }
     });
     setScore(correctAnswers.length);
     // Save practice session to database
     setIsComplete(true);
+  };
     savePracticeSessionToDb();
-    setIsComplete(true);
+  };
+
   const isAnswerCorrect = (questionIndex: number) => {
     const question = questions[questionIndex];
     if (question.questionType === 'multiple_choice') {
@@ -132,16 +136,23 @@ const QuestionGenerator = () => {
     }
   };
 
-  const handleStartReview = () => {
     console.log('🔍 Starting review mode...');
+    setIsReviewMode(true);
+    setCurrentQuestion(0);
+    setSelectedAnswer(answers[0]);
+    setOpenEndedAnswer(openEndedAnswers[0] || '');
     setShowExplanation(true);
-    console.log('✅ Review mode activated');
-
-    const question = questions[questionIndex];
-      return answers[questionIndex] === question.correctAnswer;
-      return openEndedAnswers[questionIndex] === question.correctAnswerText;
   };
 
+      if (question.questionType === 'multiple_choice') {
+        return answers[index] === question.correctAnswer;
+      } else {
+        return openEndedAnswers[index] === question.correctAnswerText;
+      }
+    });
+    
+    setScore(correctAnswers.length);
+    savePracticeSessionToDb();
   const savePracticeSessionToDb = async () => {
     try {
       const correctAnswers = questions.filter((question, index) => {
