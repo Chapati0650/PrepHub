@@ -415,6 +415,7 @@ const QuestionGenerator = () => {
 
   const handleStartReview = () => {
     console.log('🔍 Starting review mode...');
+    setIsReviewMode(true);
   };
 
   const handleExitReview = () => {
@@ -423,13 +424,6 @@ const QuestionGenerator = () => {
   };
   const savePracticeSessionToDb = async () => {
     try {
-                        try {
-                          const { getPremiumProduct } = require('../stripe-config');
-                          return getPremiumProduct().name;
-                        } catch {
-                          return 'Premium';
-                        }
-                      })()} to access all 300 questions!
       const correctAnswers = questions.filter((question, index) => {
         if (question.questionType === 'multiple_choice') {
           return answers[index] === question.correctAnswer;
@@ -639,7 +633,7 @@ const QuestionGenerator = () => {
                             <MathRenderer inline>{option}</MathRenderer>
                           )}
                         </div>
-                      Upgrade Now
+                      </div>
                     </button>
                   );
                 })}
