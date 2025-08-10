@@ -12,6 +12,10 @@ serve(async (req) => {
     return new Response('ok', { headers: corsHeaders })
   }
 
+  console.log('🎯 Webhook received request')
+  console.log('📍 Request URL:', req.url)
+  console.log('🌐 Request headers:', Object.fromEntries(req.headers.entries()))
+
   try {
     const stripe = new Stripe(Deno.env.get('Stripe Key') || '', {
       apiVersion: '2023-10-16',
@@ -21,16 +25,24 @@ serve(async (req) => {
     const body = await req.text()
     const webhookSecret = Deno.env.get('Stripe Webhook Secret')
 
+    console.log('🔐 Webhook secret exists:', !!webhookSecret)
+    console.log('✍️ Signature exists:', !!signature)
+    console.log('📄 Body length:', body.length)
+
     if (!signature || !webhookSecret) {
+      console.error('❌ Missing signature or webhook secret')
       throw new Error('Missing signature or webhook secret')
     }
 
+    console.log('🔍 Constructing Stripe event...')
     const event = stripe.webhooks.constructEvent(body, signature, webhookSecret)
+    console.log('✅ Event constructed successfully:', event.type)
 
     const supabase = createClient(
       Deno.env.get('SUPABASE_URL') ?? '',
       Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') ?? ''
     )
+    console.log('🗄️ Supabase client created')
 
     switch (event.type) {
       case 'checkout.session.completed': {
