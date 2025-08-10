@@ -54,6 +54,7 @@ const Dashboard = () => {
   const [recentSessions, setRecentSessions] = useState<RecentSession[]>([]);
   const [loading, setLoading] = useState(true);
   const [showPaymentSuccess, setShowPaymentSuccess] = useState(false);
+  const [error, setError] = useState('');
 
   useEffect(() => {
     // Check for payment success in URL
@@ -187,6 +188,19 @@ const Dashboard = () => {
           </div>
         )}
 
+        {/* Error Display */}
+        {error && (
+          <div className="mb-8 bg-red-50 border border-red-200 rounded-2xl p-4 animate-slide-up">
+            <p className="text-red-800 text-sm">{error}</p>
+            <button
+              onClick={() => setError('')}
+              className="mt-2 text-red-600 hover:text-red-800 text-xs"
+            >
+              Dismiss
+            </button>
+          </div>
+        )}
+
         {/* Webhook Test Button for Debugging */}
         <div className="mb-8 bg-blue-50 border border-blue-200 rounded-2xl p-6 animate-slide-up">
           <div className="space-y-4">
@@ -205,6 +219,9 @@ const Dashboard = () => {
               <button
                 onClick={async () => {
                   try {
+                    console.log('🧪 Testing webhook logic...');
+                    setError('Testing webhook...');
+                    
                     const response = await fetch(`${import.meta.env.VITE_SUPABASE_URL}/functions/v1/test-webhook`, {
                       method: 'POST',
                       headers: {
@@ -214,18 +231,36 @@ const Dashboard = () => {
                       body: JSON.stringify({ userId: user.id })
                     });
 
-                    const result = await response.json();
+                    console.log('🧪 Test webhook response status:', response.status);
+                    console.log('🧪 Test webhook response headers:', Object.fromEntries(response.headers.entries()));
+                    
+                    const text = await response.text();
+                    console.log('🧪 Test webhook response text:', text);
+                    
+                    let result;
+                    try {
+                      result = JSON.parse(text);
+                    } catch (parseError) {
+                      console.error('🧪 Failed to parse response as JSON:', parseError);
+                      throw new Error(`Invalid response: ${text}`);
+                    }
                     
                     if (result.success) {
-                      alert('Webhook test successful! Refreshing page...');
+                      console.log('✅ Webhook test successful:', result);
+                      setError('');
+                      alert(`✅ Webhook test successful! ${result.message}`);
                       await refreshUser();
                       window.location.reload();
                     } else {
-                      alert(`Webhook test failed: ${result.error}`);
+                      console.error('❌ Webhook test failed:', result);
+                      setError(`Webhook test failed: ${result.error}`);
+                      alert(`❌ Webhook test failed: ${result.error}`);
                     }
                   } catch (error) {
                     console.error('Test webhook error:', error);
-                    alert('Failed to test webhook');
+                    const errorMessage = error instanceof Error ? error.message : 'Unknown error';
+                    setError(`Test webhook error: ${errorMessage}`);
+                    alert(`❌ Failed to test webhook: ${errorMessage}`);
                   }
                 }}
                 className="bg-blue-600 text-white px-4 py-2 rounded-lg text-sm hover:bg-blue-700"
