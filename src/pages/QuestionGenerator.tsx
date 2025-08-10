@@ -123,17 +123,16 @@ const QuestionGenerator = () => {
     setScore(correctAnswers.length);
     
     // Save practice session to database
-    savePracticeSessionToDb();
     
     setIsComplete(true);
   };
   const handleStartReview = () => {
     console.log('🔍 Starting review mode...');
     setIsReviewMode(true);
-    setCurrentQuestion(0);
     setSelectedAnswer(answers[0]);
     setShowExplanation(false);
     console.log('✅ Review mode activated');
+    console.log('✅ New state should be:', { isReviewMode: true, currentQuestion: 0, showExplanation: true });
   };
   const isAnswerCorrect = (questionIndex: number) => {
     const question = questions[questionIndex];
