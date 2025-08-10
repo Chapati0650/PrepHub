@@ -143,14 +143,12 @@ const QuestionGenerator = () => {
 
   const handleStartReview = () => {
     console.log('🔍 Starting review mode...');
-    setIsComplete(false);
     setIsReviewMode(true);
     setCurrentQuestion(0);
     setSelectedAnswer(answers[0]);
     setOpenEndedAnswer(openEndedAnswers[0] || '');
     setShowExplanation(true);
     console.log('✅ Review mode activated');
-  };
 
   const isAnswerCorrect = (questionIndex: number) => {
     const question = questions[questionIndex];
