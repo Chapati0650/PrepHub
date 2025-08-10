@@ -123,6 +123,7 @@ const QuestionGenerator = () => {
     setScore(correctAnswers.length);
     // Save practice session to database
     setIsComplete(true);
+  };
     savePracticeSessionToDb();
   };
 
@@ -135,15 +136,21 @@ const QuestionGenerator = () => {
     }
   };
 
-  const handleStartReview = () => {
-    console.log('🔍 Starting review mode...');
     setIsReviewMode(true);
     setCurrentQuestion(0);
     setSelectedAnswer(answers[0]);
     setOpenEndedAnswer(openEndedAnswers[0] || '');
     setShowExplanation(true);
   };
-
+      if (question.questionType === 'multiple_choice') {
+        return answers[index] === question.correctAnswer;
+      } else {
+        return openEndedAnswers[index] === question.correctAnswerText;
+      }
+    });
+    
+    setScore(correctAnswers.length);
+    savePracticeSessionToDb();
   const savePracticeSessionToDb = async () => {
     try {
       const correctAnswers = questions.filter((question, index) => {
