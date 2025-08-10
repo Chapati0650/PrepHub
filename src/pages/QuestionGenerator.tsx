@@ -136,21 +136,21 @@ const QuestionGenerator = () => {
     }
   };
 
-    setIsReviewMode(true);
     setCurrentQuestion(0);
     setSelectedAnswer(answers[0]);
     setOpenEndedAnswer(openEndedAnswers[0] || '');
     setShowExplanation(true);
   };
       if (question.questionType === 'multiple_choice') {
-        return answers[index] === question.correctAnswer;
       } else {
         return openEndedAnswers[index] === question.correctAnswerText;
-      }
-    });
-    
-    setScore(correctAnswers.length);
-    savePracticeSessionToDb();
+    setIsComplete(false);
+    setIsReviewMode(true);
+    setCurrentQuestion(0);
+    setSelectedAnswer(answers[0]);
+    setOpenEndedAnswer(openEndedAnswers[0] || '');
+    setShowExplanation(true);
+  };
   const savePracticeSessionToDb = async () => {
     try {
       const correctAnswers = questions.filter((question, index) => {
