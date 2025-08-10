@@ -272,7 +272,7 @@ const QuestionGenerator = () => {
         {/* Question */}
         <div className="bg-white rounded-xl shadow-lg p-6 mb-6">
           <div className="mb-6">
-            <div className="text-lg font-medium text-gray-900 mb-4">
+            <div className="text-lg font-medium text-gray-900 mb-4 font-question">
               <MathRenderer>{question.question}</MathRenderer>
             </div>
             
