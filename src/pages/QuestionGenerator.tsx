@@ -137,11 +137,11 @@ const QuestionGenerator = () => {
 
   const handleStartReview = () => {
     console.log('🔍 Starting review mode...');
+    setIsReviewMode(true);
     setCurrentQuestion(0);
     setSelectedAnswer(answers[0]);
     setOpenEndedAnswer(openEndedAnswers[0] || '');
     setShowExplanation(true);
-    setIsReviewMode(true);
     console.log('✅ Review mode activated');
   };
 
