@@ -134,14 +134,12 @@ const QuestionGenerator = () => {
 
   const handleStartReview = () => {
     console.log('🔍 Starting review mode...');
-    setCurrentQuestion(0);
     setSelectedAnswer(answers[0]);
     setOpenEndedAnswer(openEndedAnswers[0] || '');
     setShowExplanation(true);
     console.log('✅ Review mode activated');
 
     const question = questions[questionIndex];
-    if (question.questionType === 'multiple_choice') {
       return answers[questionIndex] === question.correctAnswer;
     } else {
       return openEndedAnswers[questionIndex] === question.correctAnswerText;
