@@ -222,6 +222,10 @@ const Dashboard = () => {
                     console.log('🧪 Testing webhook logic...');
                     setError('Testing webhook...');
                     
+                   console.log('🔗 Making request to:', `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/test-webhook`);
+                   console.log('🔑 Using auth token:', import.meta.env.VITE_SUPABASE_ANON_KEY ? 'Present' : 'Missing');
+                   console.log('👤 User ID:', user.id);
+                   
                     const response = await fetch(`${import.meta.env.VITE_SUPABASE_URL}/functions/v1/test-webhook`, {
                       method: 'POST',
                       headers: {
@@ -236,6 +240,11 @@ const Dashboard = () => {
                     
                     const text = await response.text();
                     console.log('🧪 Test webhook response text:', text);
+                   if (!response.ok) {
+                     console.error('❌ Response not OK:', response.status, response.statusText);
+                     throw new Error(`HTTP ${response.status}: ${response.statusText}`);
+                   }
+                   
                     
                     let result;
                     try {
@@ -282,6 +291,10 @@ const Dashboard = () => {
                     const text = await response.text();
                     console.log('Webhook response:', text);
                     
+                   if (!text) {
+                     throw new Error('Empty response from webhook');
+                   }
+                   
                     if (response.status === 400 && text.includes('Missing signature')) {
                       alert('✅ Webhook endpoint is reachable! (Expected "Missing signature" error)');
                     } else {
@@ -343,7 +356,10 @@ const Dashboard = () => {
                 className="bg-yellow-600 text-white px-4 py-2 rounded-lg text-sm hover:bg-yellow-700"
               >
                 Manually Upgrade to Premium
-              </button>
+                   console.log('🚨 Showing error to user:', errorMessage);
+                   
+                   // Show error on page instead of alert
+                   setError(`❌ Test failed: ${errorMessage}`);
             </div>
           </div>
         )}
