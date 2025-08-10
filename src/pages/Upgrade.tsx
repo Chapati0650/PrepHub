@@ -112,7 +112,7 @@ const QuestionGenerator = () => {
     }
   };
 
-  const handleComplete = async () => {
+  const handleComplete = () => {
     const correctAnswers = questions.filter((question, index) => {
       if (question.questionType === 'multiple_choice') {
         return answers[index] === question.correctAnswer;
@@ -121,8 +121,9 @@ const QuestionGenerator = () => {
       }
     });
     setScore(correctAnswers.length);
+    // Save practice session to database
     setIsComplete(true);
-    await savePracticeSessionToDb();
+    savePracticeSessionToDb();
   };
 
   const isAnswerCorrect = (questionIndex: number) => {
