@@ -123,7 +123,26 @@ const QuestionGenerator = () => {
     
     // Save practice session to database
     setIsComplete(true);
+    setIsComplete(false);
+    setIsReviewMode(true);
+    setCurrentQuestion(0);
+    setSelectedAnswer(answers[0]);
+    setOpenEndedAnswer(openEndedAnswers[0] || '');
+    setShowExplanation(true);
   };
+
+    savePracticeSessionToDb();
+  const isAnswerCorrect = (questionIndex: number) => {
+    const question = questions[questionIndex];
+    if (question.questionType === 'multiple_choice') {
+      return answers[questionIndex] === question.correctAnswer;
+    } else {
+      return openEndedAnswers[questionIndex] === question.correctAnswerText;
+    }
+  };
+
+  const handleStartReview = () => {
+    console.log('🔍 Starting review mode...');
     setIsComplete(false);
     setIsReviewMode(true);
     setCurrentQuestion(0);
