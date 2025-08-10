@@ -100,7 +100,7 @@ const Dashboard = () => {
     } else {
       setLoading(false);
     }
-  }, [user, getUserProgress, getTopicMastery, getRecentSessions]);
+  }, [user, getUserProgress, getTopicMastery, getRecentSessions, refreshUser]);
 
   const formatTime = (seconds: number) => {
     const hours = Math.floor(seconds / 3600);
@@ -268,8 +268,10 @@ const Dashboard = () => {
                   } catch (error) {
                     console.error('Test webhook error:', error);
                     const errorMessage = error instanceof Error ? error.message : 'Unknown error';
-                    setError(`Test webhook error: ${errorMessage}`);
-                    alert(`❌ Failed to test webhook: ${errorMessage}`);
+                    console.log('🚨 Showing error to user:', errorMessage);
+                   
+                   // Show error on page instead of alert
+                   setError(`❌ Test failed: ${errorMessage}`);
                   }
                 }}
                 className="bg-blue-600 text-white px-4 py-2 rounded-lg text-sm hover:bg-blue-700"
@@ -356,16 +358,12 @@ const Dashboard = () => {
                 className="bg-yellow-600 text-white px-4 py-2 rounded-lg text-sm hover:bg-yellow-700"
               >
                 Manually Upgrade to Premium
-                   console.log('🚨 Showing error to user:', errorMessage);
-                   
-                   // Show error on page instead of alert
-                   setError(`❌ Test failed: ${errorMessage}`);
+              </button>
             </div>
           </div>
         )}
 
         {/* Header */}
-            </button>
         <div className="mb-8 animate-slide-up">
           <div className="flex items-center justify-between">
             <div>
