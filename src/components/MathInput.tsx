@@ -26,13 +26,15 @@ const MathInput: React.FC<MathInputProps> = ({
     { input: 'x^2', description: 'Exponents' },
     { input: 'x_1', description: 'Subscripts' },
     { input: 'sqrt(x)', description: 'Square root' },
-    { input: '3/4', description: 'Fractions' },
+    { input: '3/4', description: 'Proper fractions' },
+    { input: '(x+1)/(x-1)', description: 'Complex fractions' },
     { input: 'pi', description: 'Greek letters (pi, alpha, beta, etc.)' },
     { input: 'x <= 5', description: 'Less than or equal' },
     { input: 'x >= 3', description: 'Greater than or equal' },
     { input: 'x != 0', description: 'Not equal' },
     { input: '+-', description: 'Plus/minus' },
-    { input: '90 degrees', description: 'Degree symbol' }
+    { input: '90 degrees', description: 'Degree symbol' },
+    { input: 'a/36', description: 'Simple fractions' }
   ];
 
   return (

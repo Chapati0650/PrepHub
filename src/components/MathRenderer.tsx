@@ -26,6 +26,8 @@ const MathRenderer: React.FC<MathRendererProps> = ({
       .replace(/([a-zA-Z0-9\)])\^([a-zA-Z0-9]+)/g, '$1^{$2}')
       // Subscripts: x_2 → x_{2}, but only when _ is present
       .replace(/([a-zA-Z0-9\)])\_{([a-zA-Z0-9]+)}/g, '$1_{$2}')
+      // Fractions: a/b → \frac{a}{b} (for proper fraction display)
+      .replace(/([a-zA-Z0-9\(\)\+\-\*]+)\/([a-zA-Z0-9\(\)\+\-\*]+)/g, '\\frac{$1}{$2}')
       // Square roots: sqrt(x) → \sqrt{x}
       .replace(/sqrt\(([^)]+)\)/g, '\\sqrt{$1}')
       // Greek letters (only when standalone)
