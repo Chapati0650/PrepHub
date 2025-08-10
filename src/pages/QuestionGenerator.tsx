@@ -99,7 +99,7 @@ const QuestionGenerator = () => {
       setCurrentQuestion(currentQuestion + 1);
       setSelectedAnswer(answers[currentQuestion + 1]);
       setOpenEndedAnswer(openEndedAnswers[currentQuestion + 1] || '');
-      setShowExplanation(false);
+      setShowExplanation(isReviewMode ? true : false); // Keep explanations visible in review mode
     }
   };
 
@@ -108,7 +108,7 @@ const QuestionGenerator = () => {
       setCurrentQuestion(currentQuestion - 1);
       setSelectedAnswer(answers[currentQuestion - 1]);
       setOpenEndedAnswer(openEndedAnswers[currentQuestion - 1] || '');
-      setShowExplanation(false);
+      setShowExplanation(isReviewMode ? true : false); // Keep explanations visible in review mode
     }
   };
 
@@ -129,14 +129,12 @@ const QuestionGenerator = () => {
   };
   const handleStartReview = () => {
     console.log('🔍 Starting review mode...');
-    console.log('🔍 Starting review mode...');
     setIsReviewMode(true);
     setCurrentQuestion(0);
     setSelectedAnswer(answers[0]);
     setShowExplanation(false);
     console.log('✅ Review mode activated');
   };
-
   const isAnswerCorrect = (questionIndex: number) => {
     const question = questions[questionIndex];
     if (question.questionType === 'multiple_choice') {
