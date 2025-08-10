@@ -192,13 +192,16 @@ const Dashboard = () => {
           <div className="space-y-4">
             <div>
               <h3 className="text-lg font-semibold text-blue-900">Webhook Configuration</h3>
-              <p className="text-blue-700 text-sm">Your Stripe webhook URL should be:</p>
+              <p className="text-blue-700 text-sm">Your Stripe webhook URL should be exactly:</p>
               <code className="block bg-blue-100 p-2 rounded text-xs mt-2 text-blue-800">
                 https://ehlklfopwpmgkthqmqgd.supabase.co/functions/v1/stripe-webhook
               </code>
+              <p className="text-blue-700 text-xs mt-2">
+                Required events: checkout.session.completed, customer.subscription.deleted, invoice.payment_failed
+              </p>
             </div>
             
-            <div className="flex gap-4">
+            <div className="flex flex-wrap gap-4">
               <button
                 onClick={async () => {
                   try {
@@ -234,22 +237,40 @@ const Dashboard = () => {
                 onClick={async () => {
                   try {
                     const response = await fetch('https://ehlklfopwpmgkthqmqgd.supabase.co/functions/v1/stripe-webhook', {
-                      method: 'GET',
+                      method: 'POST',
+                      headers: {
+                        'Content-Type': 'application/json',
+                      },
+                      body: JSON.stringify({ test: true })
                     });
                     
-                    if (response.ok) {
-                      alert('Webhook endpoint is reachable!');
+                    const text = await response.text();
+                    console.log('Webhook response:', text);
+                    
+                    if (response.status === 400 && text.includes('Missing signature')) {
+                      alert('✅ Webhook endpoint is reachable! (Expected "Missing signature" error)');
                     } else {
-                      alert(`Webhook endpoint returned: ${response.status} ${response.statusText}`);
+                      alert(`Webhook response: ${response.status} - ${text}`);
                     }
                   } catch (error) {
                     console.error('Webhook ping error:', error);
-                    alert('Webhook endpoint is not reachable');
+                    alert(`❌ Webhook endpoint error: ${error.message}`);
                   }
                 }}
                 className="bg-green-600 text-white px-4 py-2 rounded-lg text-sm hover:bg-green-700"
               >
                 Ping Webhook Endpoint
+              </button>
+              
+              <button
+                onClick={() => {
+                  console.log('Current user premium status:', user?.is_premium);
+                  console.log('User ID:', user?.id);
+                  alert(`Current status: ${user?.is_premium ? 'Premium' : 'Free'}\nUser ID: ${user?.id}`);
+                }}
+                className="bg-purple-600 text-white px-4 py-2 rounded-lg text-sm hover:bg-purple-700"
+              >
+                Check Current Status
               </button>
             </div>
           </div>
