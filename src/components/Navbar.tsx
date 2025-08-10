@@ -1,6 +1,6 @@
 import React from 'react';
 import { Link, useLocation, useNavigate } from 'react-router-dom';
-import { User, LogOut, Menu, X } from 'lucide-react';
+import { User, LogOut, Menu, X, AlertTriangle } from 'lucide-react';
 import { useAuth } from '../contexts/AuthContext';
 import { useQuestions } from '../contexts/QuestionContext';
 import PrepHubLogo from './PrepHubLogo';
@@ -11,6 +11,8 @@ const Navbar = () => {
   const location = useLocation();
   const navigate = useNavigate();
   const [isMobileMenuOpen, setIsMobileMenuOpen] = React.useState(false);
+  const [showExitModal, setShowExitModal] = React.useState(false);
+  const [pendingNavigation, setPendingNavigation] = React.useState<string | null>(null);
 
   const isActive = (path: string) => location.pathname === path;
 
@@ -19,17 +21,25 @@ const Navbar = () => {
 
   const handleNavigation = (path: string) => {
     if (isInPracticeSession && path !== '/generator') {
-      const confirmed = window.confirm(
-        'Are you sure you would like to exit your practice session? Your progress will be lost.'
-      );
-      if (confirmed) {
-        navigate(path);
-      }
+      setPendingNavigation(path);
+      setShowExitModal(true);
     } else {
       navigate(path);
     }
   };
 
+  const handleConfirmExit = () => {
+    if (pendingNavigation) {
+      navigate(pendingNavigation);
+      setShowExitModal(false);
+      setPendingNavigation(null);
+    }
+  };
+
+  const handleCancelExit = () => {
+    setShowExitModal(false);
+    setPendingNavigation(null);
+  };
   const navLinks = [
     { path: '/practice', label: 'Practice' },
     { path: '/learn', label: 'Learn' },
@@ -39,7 +49,8 @@ const Navbar = () => {
   ];
 
   return (
-    <nav className="fixed top-0 left-0 right-0 z-50 bg-white backdrop-blur-xl border-b border-gray-200">
+    <>
+      <nav className="fixed top-0 left-0 right-0 z-50 bg-white backdrop-blur-xl border-b border-gray-200">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
         <div className="flex justify-between items-center h-16">
           {/* Logo */}
@@ -181,7 +192,51 @@ const Navbar = () => {
           </div>
         )}
       </div>
-    </nav>
+      </nav>
+
+      {/* Exit Confirmation Modal */}
+      {showExitModal && (
+        <div className="fixed inset-0 z-[60] flex items-center justify-center">
+          {/* Backdrop */}
+          <div 
+            className="absolute inset-0 bg-black/50 backdrop-blur-sm animate-fade-in"
+            onClick={handleCancelExit}
+          />
+          
+          {/* Modal */}
+          <div className="relative bg-white rounded-3xl p-8 max-w-md mx-4 shadow-2xl animate-scale-in">
+            <div className="text-center">
+              <div className="w-16 h-16 bg-orange-100 rounded-full flex items-center justify-center mx-auto mb-6">
+                <AlertTriangle className="h-8 w-8 text-orange-600" />
+              </div>
+              
+              <h3 className="text-xl font-bold text-gray-900 mb-4">
+                Exit Practice Session?
+              </h3>
+              
+              <p className="text-gray-600 mb-8 leading-relaxed">
+                Are you sure you want to exit your practice session? Your current progress will be lost and you'll need to start over.
+              </p>
+              
+              <div className="flex flex-col sm:flex-row gap-3">
+                <button
+                  onClick={handleCancelExit}
+                  className="flex-1 bg-gray-100 text-gray-700 px-6 py-3 rounded-xl font-semibold hover:bg-gray-200 transition-colors"
+                >
+                  Stay in Session
+                </button>
+                <button
+                  onClick={handleConfirmExit}
+                  className="flex-1 bg-red-600 text-white px-6 py-3 rounded-xl font-semibold hover:bg-red-700 transition-colors"
+                >
+                  Exit Session
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+    </>
   );
 };
 
