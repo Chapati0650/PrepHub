@@ -136,7 +136,6 @@ const QuestionGenerator = () => {
   };
 
   const handleStartReview = () => {
-    setIsComplete(false);
     setIsReviewMode(true);
     setCurrentQuestion(0);
     setSelectedAnswer(answers[0]);
