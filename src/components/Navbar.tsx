@@ -1,5 +1,5 @@
 import React from 'react';
-import { Link, useLocation } from 'react-router-dom';
+import { Link, useLocation, useNavigate } from 'react-router-dom';
 import { User, LogOut, Menu, X } from 'lucide-react';
 import { useAuth } from '../contexts/AuthContext';
 import { useQuestions } from '../contexts/QuestionContext';
@@ -9,9 +9,26 @@ const Navbar = () => {
   const { user, logout } = useAuth();
   const { isAdmin } = useQuestions();
   const location = useLocation();
+  const navigate = useNavigate();
   const [isMobileMenuOpen, setIsMobileMenuOpen] = React.useState(false);
 
   const isActive = (path: string) => location.pathname === path;
+
+  // Check if user is currently in a practice session
+  const isInPracticeSession = location.pathname === '/generator';
+
+  const handleNavigation = (path: string) => {
+    if (isInPracticeSession && path !== '/generator') {
+      const confirmed = window.confirm(
+        'Are you sure you would like to exit your practice session? Your progress will be lost.'
+      );
+      if (confirmed) {
+        navigate(path);
+      }
+    } else {
+      navigate(path);
+    }
+  };
 
   const navLinks = [
     { path: '/practice', label: 'Practice' },
@@ -38,9 +55,9 @@ const Navbar = () => {
           {/* Desktop Navigation */}
           <div className="hidden md:flex items-center space-x-8">
             {navLinks.map((link) => (
-              <Link
+              <button
                 key={link.path}
-                to={link.path}
+                onClick={() => handleNavigation(link.path)}
                 className={`relative font-medium transition-all duration-300 group ${
                   isActive(link.path)
                     ? 'text-black'
@@ -51,7 +68,7 @@ const Navbar = () => {
                 <span className={`absolute -bottom-1 left-0 h-0.5 bg-gradient-warm transition-all duration-300 ${
                   isActive(link.path) ? 'w-full' : 'w-0 group-hover:w-full'
                 }`}></span>
-              </Link>
+              </button>
             ))}
           </div>
 
@@ -88,18 +105,18 @@ const Navbar = () => {
               </div>
             ) : (
               <div className="flex items-center space-x-3">
-                <Link
-                  to="/login"
+                <button
+                  onClick={() => handleNavigation('/login')}
                   className="text-gray-600 hover:text-black font-medium transition-colors duration-300"
                 >
                   Login
-                </Link>
-                <Link
-                  to="/register"
+                </button>
+                <button
+                  onClick={() => handleNavigation('/register')}
                   className="bg-black text-white px-6 py-2 rounded-full hover:bg-gray-800 transition-all duration-300 font-medium"
                 >
                   Sign Up
-                </Link>
+                </button>
               </div>
             )}
 
@@ -122,10 +139,12 @@ const Navbar = () => {
           <div className="md:hidden animate-slide-up">
             <div className="px-2 pt-2 pb-3 space-y-1 glass-dark rounded-2xl mt-2 mb-4">
               {navLinks.map((link) => (
-                <Link
+                <button
                   key={link.path}
-                  to={link.path}
-                  onClick={() => setIsMobileMenuOpen(false)}
+                  onClick={() => {
+                    setIsMobileMenuOpen(false);
+                    handleNavigation(link.path);
+                  }}
                   className={`block px-4 py-3 rounded-xl font-medium transition-all duration-300 ${
                     isActive(link.path)
                       ? 'text-white bg-white/20'
@@ -133,25 +152,29 @@ const Navbar = () => {
                   }`}
                 >
                   {link.label}
-                </Link>
+                </button>
               ))}
               
               {!user && (
                 <div className="pt-4 border-t border-white/10 space-y-2">
-                  <Link
-                    to="/login"
-                    onClick={() => setIsMobileMenuOpen(false)}
+                  <button
+                    onClick={() => {
+                      setIsMobileMenuOpen(false);
+                      handleNavigation('/login');
+                    }}
                     className="block px-4 py-3 rounded-xl font-medium text-white/70 hover:text-white hover:bg-white/10 transition-all duration-300"
                   >
                     Login
-                  </Link>
-                  <Link
-                    to="/register"
-                    onClick={() => setIsMobileMenuOpen(false)}
+                  </button>
+                  <button
+                    onClick={() => {
+                      setIsMobileMenuOpen(false);
+                      handleNavigation('/register');
+                    }}
                     className="block px-4 py-3 rounded-xl font-medium btn-gradient text-white text-center"
                   >
                     Sign Up
-                  </Link>
+                  </button>
                 </div>
               )}
             </div>
