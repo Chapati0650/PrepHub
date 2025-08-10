@@ -62,6 +62,26 @@ const Practice = () => {
   useEffect(() => {
     console.log('🏃 Practice page - Current user:', user);
     console.log('🏃 Practice page - Is premium:', user?.is_premium);
+    
+    // Also check the database directly for debugging
+    if (user?.id) {
+      import('../lib/supabase').then(({ supabase }) => {
+        supabase
+          .from('users')
+          .select('is_premium')
+          .eq('id', user.id)
+          .single()
+          .then(({ data, error }) => {
+            if (error) {
+              console.log('🏃 Error checking DB premium status:', error);
+            } else {
+              console.log('🏃 DB premium status:', data?.is_premium);
+              console.log('🏃 Local user premium status:', user.is_premium);
+              console.log('🏃 Status match:', data?.is_premium === user.is_premium);
+            }
+          });
+      });
+    }
   }, [user]);
 
   const topics = [

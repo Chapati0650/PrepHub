@@ -165,6 +165,16 @@ const Dashboard = () => {
               <div>
                 <h3 className="text-lg font-semibold text-green-900">Payment Successful! 🎉</h3>
                 <p className="text-green-700">Welcome to PrepHub Premium! You now have access to all 300 questions and advanced features.</p>
+                <button
+                  onClick={async () => {
+                    console.log('🔄 Manual refresh triggered');
+                    await refreshUser();
+                    window.location.reload();
+                  }}
+                  className="mt-2 bg-green-600 text-white px-4 py-2 rounded-lg text-sm hover:bg-green-700"
+                >
+                  Refresh Status
+                </button>
               </div>
               <button
                 onClick={() => setShowPaymentSuccess(false)}

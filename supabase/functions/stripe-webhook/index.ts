@@ -37,6 +37,12 @@ serve(async (req) => {
         const session = event.data.object as Stripe.Checkout.Session
         const userId = session.client_reference_id
         
+        console.log('=== CHECKOUT SESSION COMPLETED ===')
+        console.log('Session object:', JSON.stringify(session, null, 2))
+        console.log('User ID from client_reference_id:', userId)
+        console.log('Payment status:', session.payment_status)
+        console.log('Session mode:', session.mode)
+        
         if (userId) {
           // Update user to premium status
           console.log(`Updating user ${userId} to premium status`)
@@ -66,6 +72,8 @@ serve(async (req) => {
           }
 
           console.log(`User ${userId} upgraded to premium`)
+        } else {
+          console.error('No user ID found in checkout session')
         }
         break
       }
