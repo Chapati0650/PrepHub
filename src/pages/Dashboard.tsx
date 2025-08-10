@@ -165,6 +165,7 @@ const Dashboard = () => {
               <div>
                 <h3 className="text-lg font-semibold text-green-900">Payment Successful! 🎉</h3>
                 <p className="text-green-700">Welcome to PrepHub Premium! You now have access to all 300 questions and advanced features.</p>
+                <p className="text-green-600 text-sm mt-1">If you don't see premium features yet, try the refresh button below.</p>
                 <button
                   onClick={async () => {
                     console.log('🔄 Manual refresh triggered');
@@ -181,6 +182,48 @@ const Dashboard = () => {
                 className="ml-auto text-green-600 hover:text-green-800"
               >
                 ×
+              </button>
+            </div>
+          </div>
+        )}
+
+        {/* Webhook Test Button for Debugging */}
+        {!user.is_premium && (
+          <div className="mb-8 bg-blue-50 border border-blue-200 rounded-2xl p-6 animate-slide-up">
+            <div className="flex items-center justify-between">
+              <div>
+                <h3 className="text-lg font-semibold text-blue-900">Test Webhook Functionality</h3>
+                <p className="text-blue-700">Test if the webhook logic works by simulating a successful payment</p>
+              </div>
+              <button
+                onClick={async () => {
+                  try {
+                    const response = await fetch(`${import.meta.env.VITE_SUPABASE_URL}/functions/v1/test-webhook`, {
+                      method: 'POST',
+                      headers: {
+                        'Authorization': `Bearer ${import.meta.env.VITE_SUPABASE_ANON_KEY}`,
+                        'Content-Type': 'application/json',
+                      },
+                      body: JSON.stringify({ userId: user.id })
+                    });
+
+                    const result = await response.json();
+                    
+                    if (result.success) {
+                      alert('Webhook test successful! Refreshing page...');
+                      await refreshUser();
+                      window.location.reload();
+                    } else {
+                      alert(`Webhook test failed: ${result.error}`);
+                    }
+                  } catch (error) {
+                    console.error('Test webhook error:', error);
+                    alert('Failed to test webhook');
+                  }
+                }}
+                className="bg-blue-600 text-white px-4 py-2 rounded-lg text-sm hover:bg-blue-700"
+              >
+                Test Webhook
               </button>
             </div>
           </div>
