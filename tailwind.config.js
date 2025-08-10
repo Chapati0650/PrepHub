@@ -5,7 +5,7 @@ export default {
     extend: {
       fontFamily: {
         sans: ['Inter', 'system-ui', 'sans-serif'],
-        question: ['Helvetica Neue', 'Helvetica', 'Arial', 'sans-serif'],
+        question: ['Helvetica Neue', 'Helvetica', 'Arial', 'system-ui', 'sans-serif'],
         mono: ['JetBrains Mono', 'Courier New', 'monospace'],
       },
       colors: {
