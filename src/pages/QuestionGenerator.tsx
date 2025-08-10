@@ -116,37 +116,27 @@ const QuestionGenerator = () => {
     const correctAnswers = questions.filter((question, index) => {
       if (question.questionType === 'multiple_choice') {
         return answers[index] === question.correctAnswer;
-      } else {
         return openEndedAnswers[index] === question.correctAnswerText;
       }
     });
     setScore(correctAnswers.length);
     
     // Save practice session to database
-    
     setIsComplete(true);
   };
-  const handleStartReview = () => {
-    console.log('🔍 Starting review mode...');
+    setIsComplete(false);
+    setIsReviewMode(true);
+    setCurrentQuestion(0);
     setSelectedAnswer(answers[0]);
-    setShowExplanation(false);
+    setOpenEndedAnswer(openEndedAnswers[0] || '');
+    setShowExplanation(true);
     console.log('✅ Review mode activated');
-    console.log('✅ New state should be:', { isReviewMode: true, currentQuestion: 0, showExplanation: true });
   };
+
   const isAnswerCorrect = (questionIndex: number) => {
+    const question = questions[questionIndex];
     if (question.questionType === 'multiple_choice') {
       return answers[questionIndex] === question.correctAnswer;
-    
-    // Force state updates in sequence
-    setIsComplete(false);
-    setTimeout(() => {
-      setIsReviewMode(true);
-      setCurrentQuestion(0);
-      setSelectedAnswer(answers[0]);
-      setOpenEndedAnswer(openEndedAnswers[0] || '');
-      setShowExplanation(true);
-    }, 10);
-    
     } else {
       return openEndedAnswers[questionIndex] === question.correctAnswerText;
     }
