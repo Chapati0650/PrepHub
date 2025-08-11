@@ -1,11 +1,9 @@
-import React, { useState, useEffect } from 'react';
 import { useLocation, useNavigate } from 'react-router-dom';
 import { Clock, Check, X, ArrowRight, ArrowLeft, RotateCcw, Eye, Home } from 'lucide-react';
 import MathRenderer from '../components/MathRenderer';
 import { useQuestions } from '../contexts/QuestionContext';
 
 interface QuestionData {
-  id: string;
   question: string;
   questionType: 'multiple_choice' | 'open_ended';
   options: string[];
@@ -422,7 +420,7 @@ const QuestionGenerator = () => {
     console.log('🚪 Exiting review mode...');
     setIsReviewMode(false);
   };
-  
+
   const savePracticeSessionToDb = async () => {
     try {
       const correctAnswers = questions.filter((question, index) => {
