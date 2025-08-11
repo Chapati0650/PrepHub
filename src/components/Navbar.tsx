@@ -216,17 +216,9 @@ const ReviewMode = ({
                   ) : (
                     <X className="h-5 w-5 text-red-600 mr-2" />
                   )}
-                  <div className="flex flex-col">
-                    <span className="text-sm font-medium text-black max-w-32 truncate">
-                      {user.name || user.email?.split('@')[0]}
-                    </span>
-                    {user.is_premium && (
-                      <div className="flex items-center">
-                        <Star className="h-3 w-3 text-yellow-500 mr-1" />
-                        <span className="text-xs text-yellow-600 font-medium">{premiumProduct.name}</span>
-                      </div>
-                    )}
-                  </div>
+                  <span className="font-semibold">
+                    {isAnswerCorrect(currentQuestion) ? 'Correct!' : 'Incorrect'}
+                  </span>
                 </div>
                 
                 {/* Show correct answer for incorrect responses */}
@@ -440,7 +432,6 @@ const QuestionGenerator = () => {
       });
 
       const timeSpent = settings.timedMode 
-  const premiumProduct = getPremiumProduct();
         ? initialTotalTime - timeLeft
         : 0;
 
