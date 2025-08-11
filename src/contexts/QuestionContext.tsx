@@ -479,6 +479,19 @@ const QuestionGenerator = () => {
     );
   }
 
+  if (questions.length === 0) {
+    return (
+      <div className="min-h-screen bg-white py-8">
+        <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8">
+          <div className="bg-white rounded-xl shadow-lg p-8 text-center">
+            <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-teal-600 mx-auto mb-4"></div>
+            <p className="text-gray-600">Loading questions...</p>
+          </div>
+        </div>
+      </div>
+    );
+  }
+
   if (isComplete) {
     const percentage = Math.round((score / questions.length) * 100);
     return (
