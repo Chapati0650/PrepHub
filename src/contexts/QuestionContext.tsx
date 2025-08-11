@@ -422,7 +422,7 @@ const QuestionGenerator = () => {
     console.log('🚪 Exiting review mode...');
     setIsReviewMode(false);
   };
-
+  
   const savePracticeSessionToDb = async () => {
     try {
       const correctAnswers = questions.filter((question, index) => {
