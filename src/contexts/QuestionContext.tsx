@@ -415,19 +415,23 @@ const QuestionGenerator = () => {
 
   const handleStartReview = () => {
     console.log('🔍 Starting review mode...');
+    setIsReviewMode(true);
   };
 
   const handleExitReview = () => {
     console.log('🚪 Exiting review mode...');
     setIsReviewMode(false);
   };
+
   const savePracticeSessionToDb = async () => {
+    try {
       const correctAnswers = questions.filter((question, index) => {
         if (question.questionType === 'multiple_choice') {
           return answers[index] === question.correctAnswer;
         } else {
           return openEndedAnswers[index] === question.correctAnswerText;
         }
+      });
 
       const timeSpent = settings.timedMode 
         ? initialTotalTime - timeLeft
