@@ -297,7 +297,6 @@ const ReviewMode = ({
 const QuestionGenerator = () => {
   const location = useLocation();
   const navigate = useNavigate();
-  const { user, loading: authLoading } = useAuth();
   const { generateQuestions, savePracticeSession } = useQuestions();
   const [questions, setQuestions] = useState<QuestionData[]>([]);
   const [currentQuestion, setCurrentQuestion] = useState(0);
@@ -322,30 +321,20 @@ const QuestionGenerator = () => {
 
   useEffect(() => {
     const loadQuestions = async () => {
-      // Only generate questions if user is authenticated and auth loading is complete
-      if (!authLoading && user) {
-        try {
-          const generatedQuestions = await generateQuestions(settings);
-          setQuestions(generatedQuestions);
-          setAnswers(new Array(generatedQuestions.length).fill(null));
-          setOpenEndedAnswers(new Array(generatedQuestions.length).fill(''));
-          
-          if (settings.timedMode) {
-            const totalTime = generatedQuestions.length * (settings.customTimePerQuestion * 60);
-            setTimeLeft(totalTime);
-            setInitialTotalTime(totalTime);
-          }
-        } catch (error) {
-          console.error('Failed to load questions:', error);
-        }
-      } else if (!authLoading && !user) {
-        // Redirect to login if not authenticated
-        navigate('/login');
+      const generatedQuestions = await generateQuestions(settings);
+      setQuestions(generatedQuestions);
+      setAnswers(new Array(generatedQuestions.length).fill(null));
+      setOpenEndedAnswers(new Array(generatedQuestions.length).fill(''));
+      
+      if (settings.timedMode) {
+        const totalTime = generatedQuestions.length * (settings.customTimePerQuestion * 60);
+        setTimeLeft(totalTime);
+        setInitialTotalTime(totalTime);
       }
     };
 
     loadQuestions();
-  }, [settings, user, authLoading, generateQuestions, navigate]);
+  }, [settings]);
 
   useEffect(() => {
     if (settings.timedMode && timeLeft > 0 && !isComplete) {
