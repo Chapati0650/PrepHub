@@ -416,15 +416,12 @@ const QuestionGenerator = () => {
   const handleStartReview = () => {
     setIsReviewMode(true);
   };
-
   const handleExitReview = () => {
     setIsReviewMode(false);
   };
 
   const savePracticeSessionToDb = async () => {
     try {
-      const timeSpent = settings.timedMode ? initialTotalTime - timeLeft : 0;
-      
       const correctAnswers = questions.filter((question, index) => {
         if (question.questionType === 'multiple_choice') {
           return answers[index] === question.correctAnswer;
@@ -432,6 +429,25 @@ const QuestionGenerator = () => {
           return openEndedAnswers[index] === question.correctAnswerText;
         }
       });
+      const { data: solvedQuestions, error: solvedError } = await supabase
+        .from('user_question_attempts')
+        .select('question_id')
+        .eq('user_id', user.user.id)
+        .eq('is_correct', true);
+
+      if (solvedError) {
+        console.error('Error fetching solved questions:', solvedError);
+        throw solvedError;
+      }
+
+      const solvedQuestionIds = solvedQuestions?.map(sq => sq.question_id) || [];
+      console.log(`🎯 User has solved ${solvedQuestionIds.length} questions correctly`);
+
+      // Get questions that the user hasn't answered correctly yet
+      let query = supabase
+        .from('questions')
+        .select('*');
+
 
       // Record individual question attempts
       for (let i = 0; i < questions.length; i++) {
