@@ -423,39 +423,58 @@ const QuestionGenerator = () => {
   };
   const savePracticeSessionToDb = async () => {
     try {
-      // Direct query to questions table
-      const { data, error } = await supabase
-        .from('questions')
-        .select(`
-          id,
-          question_number,
-          question,
-          option_a,
-          option_b,
-          option_c,
-          option_d,
-          correct_answer,
-          explanation,
-          topic,
-          difficulty,
-          question_type,
-          image_url,
-          created_at,
-          created_by,
-          is_active,
-          access_level
-        `)
-        .eq('is_active', true)
-        .in('access_level', allowedAccessLevels)
-        .limit(Math.min(count, 50));
-        
-      if (error) {
-        console.error('Error fetching mixed questions:', error);
-        throw error;
-      }
+    // Direct query to questions table
+    const { data, error } = await supabase
+      .from('questions')
+      .select(`
+        id,
+        question_number,
+        question,
+        option_a,
+        option_b,
+        option_c,
+        option_d,
+        correct_answer,
+        explanation,
+        topic,
+        difficulty,
+        question_type,
+        image_url,
+        created_at,
+        created_by,
+        is_active,
+        access_level
+      `)
+      .eq('is_active', true)
+      .in('access_level', allowedAccessLevels)
+      .limit(Math.min(count, 50));
       
-      console.log('Direct query successful, data:', data);
-      return mapDatabaseToQuestionData(data);
+    if (error) {
+      console.error('Error fetching mixed questions:', error);
+      throw error;
+    }
+    
+    console.log('Direct query successful, data:', data);
+    return mapDatabaseToQuestionData(data);
+      <ReviewMode
+        questions={questions}
+        answers={answers}
+        openEndedAnswers={openEndedAnswers}
+        onExit={handleExitReview}
+      />
+    );
+  }
+
+  if (questions.length === 0) {
+    return (
+      <div className="min-h-screen bg-white flex items-center justify-center">
+        <div className="text-center">
+          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600 mx-auto mb-4"></div>
+          <p className="text-lg text-gray-600">Generating your practice questions...</p>
+        </div>
+      </div>
+    );
+  }
 
   if (isComplete) {
     const percentage = Math.round((score / questions.length) * 100);
