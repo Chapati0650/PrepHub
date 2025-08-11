@@ -1,6 +1,8 @@
-import React, { createContext, useContext, ReactNode } from 'react';
-import { supabase } from '../lib/supabase';
-import { useAuth } from './AuthContext';
+import React, { useState, useEffect } from 'react';
+import { useLocation, useNavigate } from 'react-router-dom';
+import { Clock, Check, X, ArrowRight, ArrowLeft, RotateCcw, Eye, Home } from 'lucide-react';
+import MathRenderer from '../components/MathRenderer';
+import { useQuestions } from '../contexts/QuestionContext';
 
 interface QuestionData {
   id: string;
@@ -12,371 +14,764 @@ interface QuestionData {
   explanation: string;
   topic: string;
   difficulty: string;
-  imageUrl?: string;
 }
 
-interface PracticeSession {
-  topic: string;
-  difficulty: string;
-  totalQuestions: number;
-  correctAnswers: number;
-  score: number;
-  timeSpent?: number | null;
-}
+// Separate Review Component
+const ReviewMode = ({ 
+  questions, 
+  answers, 
+  openEndedAnswers, 
+  onExit 
+}: {
+  questions: QuestionData[];
+  answers: (number | null)[];
+  openEndedAnswers: string[];
+  onExit: () => void;
+}) => {
+  const [currentQuestion, setCurrentQuestion] = useState(0);
+  const navigate = useNavigate();
 
-interface UserProgress {
-  totalQuestionsAnswered: number;
-  totalCorrectAnswers: number;
-  totalTimeSpentSeconds: number;
-  currentStreak: number;
-  lastPracticeDate: string | null;
-}
-
-interface TopicMastery {
-  topic: string;
-  masteryPercentage: number;
-}
-
-interface RecentSession {
-  id: string;
-  topic: string;
-  difficulty: string;
-  totalQuestions: number;
-  correctAnswers: number;
-  timeSpentSeconds: number;
-  sessionDate: string;
-  createdAt: string;
-}
-
-interface QuestionContextType {
-  generateQuestions: (settings: any) => Promise<QuestionData[]>;
-  savePracticeSession: (session: PracticeSession) => Promise<void>;
-  isAdmin: () => boolean;
-  getUserProgress: () => Promise<UserProgress | null>;
-  getTopicMastery: () => Promise<TopicMastery[]>;
-  getRecentSessions: () => Promise<RecentSession[]>;
-  getQuestionsCount: () => Promise<number>;
-}
-
-const QuestionContext = createContext<QuestionContextType | undefined>(undefined);
-
-export const QuestionProvider: React.FC<{ children: ReactNode }> = ({ children }) => {
-  const { user } = useAuth();
-
-  const mapDatabaseToQuestionData = (dbQuestions: any[]): QuestionData[] => {
-    return dbQuestions.map(q => ({
-      id: q.id,
-      question: q.question,
-      questionType: q.question_type || 'multiple_choice',
-      options: q.question_type === 'multiple_choice' 
-        ? [q.option_a, q.option_b, q.option_c, q.option_d].filter(Boolean)
-        : [],
-      correctAnswer: q.question_type === 'multiple_choice' 
-        ? ['A', 'B', 'C', 'D'].indexOf(q.correct_answer)
-        : 0,
-      correctAnswerText: q.correct_answer,
-      explanation: q.explanation || '',
-      topic: q.topic,
-      difficulty: q.difficulty,
-      imageUrl: q.image_url
-    }));
-  };
-
-  const getRandomQuestionsBySkill = async (skill: string, count: number, allowedAccessLevels: ('free' | 'premium')[]): Promise<QuestionData[]> => {
-    try {
-      console.log('=== RETRIEVAL DEBUG ===');
-      console.log('Fetching questions for skill:', skill, 'count:', count);
-      
-      // Use direct query with proper limits and access level filtering
-      const { data, error } = await supabase
-        .from('questions')
-        .select(`
-          id,
-          question_number,
-          question,
-          option_a,
-          option_b,
-          option_c,
-          option_d,
-          correct_answer,
-          explanation,
-          topic,
-          difficulty,
-          question_type,
-          image_url,
-          created_at,
-          created_by,
-          is_active,
-          access_level
-        `)
-        .eq('topic', skill)
-        .in('access_level', allowedAccessLevels)
-        .eq('is_active', true)
-        .limit(count);
-        
-      if (error) {
-        console.error('Error fetching questions by skill:', error);
-        throw error;
-      }
-      
-      console.log('Direct query successful, data:', data);
-      return mapDatabaseToQuestionData(data);
-    } catch (error) {
-      console.error('Error fetching random questions by skill:', error);
-      throw new Error(`Unable to load questions for skill: ${skill}`);
+  const isAnswerCorrect = (questionIndex: number) => {
+    const question = questions[questionIndex];
+    if (question.questionType === 'multiple_choice') {
+      return answers[questionIndex] === question.correctAnswer;
+    } else {
+      return openEndedAnswers[questionIndex] === question.correctAnswerText;
     }
   };
 
-  const getRandomMixedQuestions = async (count: number, allowedAccessLevels: ('free' | 'premium')[]): Promise<QuestionData[]> => {
-    try {
-      console.log('=== MIXED RETRIEVAL DEBUG ===');
-      console.log('Fetching mixed questions, count:', count);
-      
-      // Use direct query with proper limits and access level filtering
-      const { data, error } = await supabase
-        .from('questions')
-        .select(`
-          id,
-          question_number,
-          question,
-          option_a,
-          option_b,
-          option_c,
-          option_d,
-          correct_answer,
-          explanation,
-          topic,
-          difficulty,
-          question_type,
-          image_url,
-          created_at,
-          created_by,
-          is_active,
-          access_level
-        `)
-        .eq('is_active', true)
-        .in('access_level', allowedAccessLevels)
-        .limit(count);
-        
-      if (error) {
-        console.error('Error fetching mixed questions:', error);
-        throw error;
-      }
-      
-      console.log('Direct query successful, data:', data);
-      return mapDatabaseToQuestionData(data);
-    } catch (error) {
-      console.error('Error fetching random mixed questions:', error);
-      throw new Error('Unable to load questions from database');
+  const handleNext = () => {
+    if (currentQuestion < questions.length - 1) {
+      setCurrentQuestion(currentQuestion + 1);
     }
   };
 
-  const generateQuestions = async (settings: any): Promise<QuestionData[]> => {
-    try {
-      console.log('=== GENERATE QUESTIONS DEBUG ===');
-      console.log('Settings:', settings);
-      
-      if (!user) {
-        throw new Error('User not authenticated');
-      }
-
-      // Determine access levels based on user's premium status
-      const { data: userData, error: userError } = await supabase
-        .from('users')
-        .select('is_premium')
-        .eq('id', user.id)
-        .single();
-
-      if (userError) {
-        console.error('Error fetching user data:', userError);
-        throw userError;
-      }
-
-      const allowedAccessLevels: ('free' | 'premium')[] = userData?.is_premium 
-        ? ['free', 'premium'] 
-        : ['free'];
-
-      console.log('User premium status:', userData?.is_premium);
-      console.log('Allowed access levels:', allowedAccessLevels);
-
-      let questions: QuestionData[];
-      
-      if (settings.topic === 'Mixed') {
-        questions = await getRandomMixedQuestions(settings.questionCount, allowedAccessLevels);
-      } else {
-        questions = await getRandomQuestionsBySkill(settings.topic, settings.questionCount, allowedAccessLevels);
-      }
-
-      if (!questions || questions.length === 0) {
-        throw new Error(`No questions available for ${settings.topic}`);
-      }
-
-      console.log('Generated questions:', questions.length);
-      return questions;
-    } catch (error) {
-      console.error('Error in generateQuestions:', error);
-      throw new Error(`Unable to load questions for skill: ${settings.topic}`);
+  const handlePrevious = () => {
+    if (currentQuestion > 0) {
+      setCurrentQuestion(currentQuestion - 1);
     }
   };
 
-  const savePracticeSession = async (session: PracticeSession): Promise<void> => {
-    try {
-      if (!user) {
-        throw new Error('User not authenticated');
-      }
-
-      const { error } = await supabase
-        .from('practice_sessions')
-        .insert({
-          user_id: user.id,
-          topic: session.topic,
-          difficulty: session.difficulty,
-          total_questions: session.totalQuestions,
-          correct_answers: session.correctAnswers,
-          time_spent_seconds: session.timeSpent || 0
-        });
-
-      if (error) {
-        console.error('Error saving practice session:', error);
-        throw error;
-      }
-
-      console.log('Practice session saved successfully');
-    } catch (error) {
-      console.error('Error in savePracticeSession:', error);
-      throw error;
-    }
-  };
-
-  const isAdmin = (): boolean => {
-    return user?.email === 'rptestprepservices@gmail.com';
-  };
-
-  const getUserProgress = async (): Promise<UserProgress | null> => {
-    try {
-      if (!user) return null;
-
-      const { data, error } = await supabase
-        .from('user_progress')
-        .select('*')
-        .eq('user_id', user.id)
-        .single();
-
-      if (error && error.code !== 'PGRST116') {
-        console.error('Error fetching user progress:', error);
-        throw error;
-      }
-
-      return data ? {
-        totalQuestionsAnswered: data.total_questions_answered || 0,
-        totalCorrectAnswers: data.total_correct_answers || 0,
-        totalTimeSpentSeconds: data.total_time_spent_seconds || 0,
-        currentStreak: data.current_streak || 0,
-        lastPracticeDate: data.last_practice_date
-      } : null;
-    } catch (error) {
-      console.error('Error in getUserProgress:', error);
-      return null;
-    }
-  };
-
-  const getTopicMastery = async (): Promise<TopicMastery[]> => {
-    try {
-      if (!user) return [];
-
-      const { data, error } = await supabase
-        .from('topic_mastery')
-        .select('*')
-        .eq('user_id', user.id);
-
-      if (error) {
-        console.error('Error fetching topic mastery:', error);
-        throw error;
-      }
-
-      return data?.map(tm => ({
-        topic: tm.topic,
-        masteryPercentage: tm.mastery_percentage
-      })) || [];
-    } catch (error) {
-      console.error('Error in getTopicMastery:', error);
-      return [];
-    }
-  };
-
-  const getRecentSessions = async (): Promise<RecentSession[]> => {
-    try {
-      if (!user) return [];
-
-      const { data, error } = await supabase
-        .from('practice_sessions')
-        .select('*')
-        .eq('user_id', user.id)
-        .order('created_at', { ascending: false })
-        .limit(5);
-
-      if (error) {
-        console.error('Error fetching recent sessions:', error);
-        throw error;
-      }
-
-      return data?.map(session => ({
-        id: session.id,
-        topic: session.topic,
-        difficulty: session.difficulty,
-        totalQuestions: session.total_questions,
-        correctAnswers: session.correct_answers,
-        timeSpentSeconds: session.time_spent_seconds,
-        sessionDate: session.session_date,
-        createdAt: session.created_at
-      })) || [];
-    } catch (error) {
-      console.error('Error in getRecentSessions:', error);
-      return [];
-    }
-  };
-
-  const getQuestionsCount = async (): Promise<number> => {
-    try {
-      const { count, error } = await supabase
-        .from('questions')
-        .select('*', { count: 'exact', head: true })
-        .eq('is_active', true)
-        .in('access_level', ['free', 'premium']);
-
-      if (error) {
-        console.error('Error getting questions count:', error);
-        throw error;
-      }
-
-      return count || 0;
-    } catch (error) {
-      console.error('Error in getQuestionsCount:', error);
-      return 0;
-    }
-  };
-
-  const value: QuestionContextType = {
-    generateQuestions,
-    savePracticeSession,
-    isAdmin,
-    getUserProgress,
-    getTopicMastery,
-    getRecentSessions,
-    getQuestionsCount
-  };
+  const question = questions[currentQuestion];
 
   return (
-    <QuestionContext.Provider value={value}>
-      {children}
-    </QuestionContext.Provider>
+    <div className="min-h-screen bg-white py-8">
+      <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8">
+        {/* Header */}
+        <div className="bg-purple-50 border-2 border-purple-200 rounded-xl shadow-lg p-6 mb-6">
+          <div className="flex justify-between items-center">
+            <div>
+              <h1 className="text-xl font-semibold text-purple-900">
+                Review Mode: Question {currentQuestion + 1} of {questions.length}
+              </h1>
+              <p className="text-purple-700">
+                <span className={`ml-4 px-2 py-1 rounded-full text-xs font-medium ${
+                  isAnswerCorrect(currentQuestion) 
+                    ? 'bg-green-100 text-green-800' 
+                    : 'bg-red-100 text-red-800'
+                }`}>
+                  {isAnswerCorrect(currentQuestion) ? 'Correct' : 'Incorrect'}
+                </span>
+              </p>
+            </div>
+            <button
+              onClick={onExit}
+              className="bg-gray-600 text-white px-4 py-2 rounded-lg font-medium hover:bg-gray-700 transition-colors"
+            >
+              Exit Review
+            </button>
+          </div>
+          
+          <div className="mt-4 bg-gray-200 rounded-full h-2">
+            <div 
+              className="bg-purple-600 h-2 rounded-full transition-all duration-300"
+              style={{ width: `${((currentQuestion + 1) / questions.length) * 100}%` }}
+            />
+          </div>
+        </div>
+
+        {/* Question */}
+        <div className="bg-white rounded-xl shadow-lg p-6 mb-6">
+          <div className="mb-6">
+            <div className="text-lg font-medium text-gray-900 mb-4 font-sans">
+              <MathRenderer>{question.question}</MathRenderer>
+            </div>
+            
+            {/* Display question image if available */}
+            {question.imageUrl && question.imageUrl.trim() !== '' && question.imageUrl !== 'null' && (
+              <div className="mb-6">
+                <p className="text-sm text-gray-500 mb-2">Question Image:</p>
+                <img
+                  src={question.imageUrl}
+                  alt="Question diagram"
+                  className="max-w-full h-auto max-h-96 rounded-lg border border-gray-200 shadow-sm mx-auto block"
+                  onError={(e) => {
+                    e.currentTarget.style.display = 'none';
+                  }}
+                />
+              </div>
+            )}
+            
+            {question.questionType === 'multiple_choice' ? (
+              <div className="space-y-3">
+                {question.options.map((option, index) => {
+                  const isUserAnswer = answers[currentQuestion] === index;
+                  const isCorrectAnswer = index === question.correctAnswer;
+                  const isUserCorrect = answers[currentQuestion] === question.correctAnswer;
+                  
+                  let buttonClass = '';
+                  let iconElement = null;
+                  
+                  if (isCorrectAnswer) {
+                    buttonClass = 'border-green-500 bg-green-50 text-green-700';
+                    iconElement = <Check className="h-5 w-5 text-green-600" />;
+                  } else if (isUserAnswer && !isUserCorrect) {
+                    buttonClass = 'border-red-500 bg-red-50 text-red-700';
+                    iconElement = <X className="h-5 w-5 text-red-600" />;
+                  } else {
+                    buttonClass = 'border-gray-200 bg-gray-50 text-gray-600';
+                  }
+                  
+                  return (
+                    <div
+                      key={index}
+                      className={`w-full p-4 text-left rounded-lg border-2 transition-all ${buttonClass} cursor-default`}
+                    >
+                      <div className="flex items-start space-x-3">
+                        <div className="flex items-center space-x-2">
+                          <span className="font-medium">
+                            {String.fromCharCode(65 + index)}.
+                          </span>
+                          {iconElement}
+                        </div>
+                        <div className="flex-1">
+                          {(option.startsWith('http') || option.startsWith('https://')) && 
+                           (option.includes('.jpg') || option.includes('.png') || option.includes('.gif') || 
+                            option.includes('.svg') || option.includes('.jpeg') || option.includes('.webp') || 
+                            option.includes('supabase') || option.includes('storage')) ? (
+                            <img
+                              src={option}
+                              alt="Option"
+                              className="max-w-full h-auto max-h-48 rounded border border-gray-300 shadow-sm"
+                              onError={(e) => {
+                                e.currentTarget.outerHTML = `<div class="text-red-500 text-sm">Image failed to load</div>`;
+                              }}
+                            />
+                          ) : (
+                            <MathRenderer inline>{option}</MathRenderer>
+                          )}
+                        </div>
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+            ) : (
+              <div className="space-y-4">
+                <div className={`p-4 rounded-lg border-2 ${
+                  openEndedAnswers[currentQuestion] === question.correctAnswerText
+                    ? 'border-green-500 bg-green-50'
+                    : 'border-red-500 bg-red-50'
+                }`}>
+                  <div className="flex items-center mb-2">
+                    {openEndedAnswers[currentQuestion] === question.correctAnswerText ? (
+                      <Check className="h-5 w-5 text-green-600 mr-2" />
+                    ) : (
+                      <X className="h-5 w-5 text-red-600 mr-2" />
+                    )}
+                    <span className="font-semibold">Your Answer:</span>
+                  </div>
+                  <p className="text-lg font-mono">
+                    {openEndedAnswers[currentQuestion] || 'No answer provided'}
+                  </p>
+                </div>
+                
+                {openEndedAnswers[currentQuestion] !== question.correctAnswerText && (
+                  <div className="p-4 rounded-lg border-2 border-green-500 bg-green-50">
+                    <div className="flex items-center mb-2">
+                      <Check className="h-5 w-5 text-green-600 mr-2" />
+                      <span className="font-semibold text-green-800">Correct Answer:</span>
+                    </div>
+                    <p className="text-lg font-mono text-green-700">
+                      {question.correctAnswerText}
+                    </p>
+                  </div>
+                )}
+              </div>
+            )}
+          </div>
+
+          {/* Explanation Section - Always shown in review mode */}
+          <div className="border-t pt-4">
+            <div className="space-y-4">
+              {/* Answer Status */}
+              <div className={`p-4 rounded-lg ${
+                isAnswerCorrect(currentQuestion)
+                  ? 'bg-green-50 border border-green-200'
+                  : 'bg-red-50 border border-red-200'
+              }`}>
+                <div className="flex items-center mb-2">
+                  {isAnswerCorrect(currentQuestion) ? (
+                    <Check className="h-5 w-5 text-green-600 mr-2" />
+                  ) : (
+                    <X className="h-5 w-5 text-red-600 mr-2" />
+                  )}
+                  <span className="font-semibold">
+                    {isAnswerCorrect(currentQuestion) ? 'Correct!' : 'Incorrect'}
+                  </span>
+                </div>
+                
+                {/* Show correct answer for incorrect responses */}
+                {!isAnswerCorrect(currentQuestion) && (
+                  <p className="text-sm text-gray-700 mt-2">
+                    <strong>Correct answer:</strong> {question.questionType === 'multiple_choice' 
+                      ? `${String.fromCharCode(65 + question.correctAnswer)} - ${question.options[question.correctAnswer]}`
+                      : question.correctAnswerText}
+                  </p>
+                )}
+              </div>
+              
+              {/* Explanation */}
+              {question.explanation && (
+                <div className="p-4 rounded-lg bg-blue-50 border border-blue-200">
+                  <h4 className="font-semibold text-blue-900 mb-2">Explanation:</h4>
+                  <p className="text-blue-800">
+                    <MathRenderer>{question.explanation}</MathRenderer>
+                  </p>
+                </div>
+              )}
+            </div>
+          </div>
+        </div>
+
+        {/* Navigation */}
+        <div className="flex justify-between items-center">
+          <button
+            onClick={handlePrevious}
+            disabled={currentQuestion === 0}
+            className={`flex items-center space-x-2 px-4 py-2 rounded-lg font-medium transition-colors ${
+              currentQuestion === 0
+                ? 'bg-gray-200 text-gray-400 cursor-not-allowed'
+                : 'bg-purple-600 text-white hover:bg-purple-700'
+            }`}
+          >
+            <ArrowLeft className="h-4 w-4" />
+            <span>Previous</span>
+          </button>
+
+          <div className="flex items-center space-x-4">
+            <button
+              onClick={() => navigate('/dashboard')}
+              className="flex items-center space-x-2 bg-gray-600 text-white px-4 py-2 rounded-lg font-medium hover:bg-gray-700 transition-colors"
+            >
+              <Home className="h-4 w-4" />
+              <span>Dashboard</span>
+            </button>
+            <button
+              onClick={() => navigate('/practice')}
+              className="flex items-center space-x-2 bg-blue-600 text-white px-4 py-2 rounded-lg font-medium hover:bg-blue-700 transition-colors"
+            >
+              <RotateCcw className="h-4 w-4" />
+              <span>Practice Again</span>
+            </button>
+          </div>
+
+          <button
+            onClick={handleNext}
+            disabled={currentQuestion === questions.length - 1}
+            className={`flex items-center space-x-2 px-4 py-2 rounded-lg font-medium transition-colors ${
+              currentQuestion === questions.length - 1
+                ? 'bg-gray-200 text-gray-400 cursor-not-allowed'
+                : 'bg-purple-600 text-white hover:bg-purple-700'
+            }`}
+          >
+            <span>Next</span>
+            <ArrowRight className="h-4 w-4" />
+          </button>
+        </div>
+      </div>
+    </div>
   );
 };
 
-export const useQuestions = (): QuestionContextType => {
-  const context = useContext(QuestionContext);
-  if (context === undefined) {
-    throw new Error('useQuestions must be used within a QuestionProvider');
+const QuestionGenerator = () => {
+  const location = useLocation();
+  const navigate = useNavigate();
+  const { generateQuestions, savePracticeSession } = useQuestions();
+  const [questions, setQuestions] = useState<QuestionData[]>([]);
+  const [currentQuestion, setCurrentQuestion] = useState(0);
+  const [selectedAnswer, setSelectedAnswer] = useState<number | null>(null);
+  const [openEndedAnswer, setOpenEndedAnswer] = useState('');
+  const [showExplanation, setShowExplanation] = useState(false);
+  const [answers, setAnswers] = useState<(number | null)[]>([]);
+  const [openEndedAnswers, setOpenEndedAnswers] = useState<string[]>([]);
+  const [timeLeft, setTimeLeft] = useState(0);
+  const [initialTotalTime, setInitialTotalTime] = useState(0);
+  const [isComplete, setIsComplete] = useState(false);
+  const [isReviewMode, setIsReviewMode] = useState(false);
+  const [score, setScore] = useState(0);
+
+  const settings = location.state || {
+    topic: 'Algebra',
+    difficulty: 'medium',
+    questionCount: 10,
+    timedMode: false,
+    customTimePerQuestion: 2
+  };
+
+  useEffect(() => {
+    const loadQuestions = async () => {
+      const generatedQuestions = await generateQuestions(settings);
+      setQuestions(generatedQuestions);
+      setAnswers(new Array(generatedQuestions.length).fill(null));
+      setOpenEndedAnswers(new Array(generatedQuestions.length).fill(''));
+      
+      if (settings.timedMode) {
+        const totalTime = generatedQuestions.length * (settings.customTimePerQuestion * 60);
+        setTimeLeft(totalTime);
+        setInitialTotalTime(totalTime);
+      }
+    };
+
+    loadQuestions();
+  }, [settings]);
+
+  useEffect(() => {
+    if (settings.timedMode && timeLeft > 0 && !isComplete) {
+      const timer = setInterval(() => {
+        setTimeLeft(prev => {
+          if (prev <= 1) {
+            setIsComplete(true);
+            return 0;
+          }
+          return prev - 1;
+        });
+      }, 1000);
+
+      return () => clearInterval(timer);
+    }
+  }, [timeLeft, isComplete, settings.timedMode]);
+
+  const formatTime = (seconds: number) => {
+    const mins = Math.floor(seconds / 60);
+    const secs = seconds % 60;
+    return `${mins}:${secs.toString().padStart(2, '0')}`;
+  };
+
+  const handleAnswerSelect = (answerIndex: number) => {
+    setSelectedAnswer(answerIndex);
+    const newAnswers = [...answers];
+    newAnswers[currentQuestion] = answerIndex;
+    setAnswers(newAnswers);
+  };
+
+  const handleOpenEndedAnswer = (answer: string) => {
+    setOpenEndedAnswer(answer);
+    const newAnswers = [...openEndedAnswers];
+    newAnswers[currentQuestion] = answer;
+    setOpenEndedAnswers(newAnswers);
+  };
+
+  const handleNext = () => {
+    if (currentQuestion < questions.length - 1) {
+      setCurrentQuestion(currentQuestion + 1);
+      setSelectedAnswer(answers[currentQuestion + 1]);
+      setOpenEndedAnswer(openEndedAnswers[currentQuestion + 1] || '');
+      setShowExplanation(false);
+    }
+  };
+
+  const handlePrevious = () => {
+    if (currentQuestion > 0) {
+      setCurrentQuestion(currentQuestion - 1);
+      setSelectedAnswer(answers[currentQuestion - 1]);
+      setOpenEndedAnswer(openEndedAnswers[currentQuestion - 1] || '');
+      setShowExplanation(false);
+    }
+  };
+
+  const handleComplete = () => {
+    const correctAnswers = questions.filter((question, index) => {
+      if (question.questionType === 'multiple_choice') {
+        return answers[index] === question.correctAnswer;
+      } else {
+        return openEndedAnswers[index] === question.correctAnswerText;
+      }
+    });
+    
+    setScore(correctAnswers.length);
+    savePracticeSessionToDb();
+    setIsComplete(true);
+  };
+
+  const isAnswerCorrect = (questionIndex: number) => {
+    const question = questions[questionIndex];
+    if (question.questionType === 'multiple_choice') {
+      return answers[questionIndex] === question.correctAnswer;
+    } else {
+      return openEndedAnswers[questionIndex] === question.correctAnswerText;
+    }
+  };
+
+  const handleStartReview = () => {
+    console.log('🔍 Starting review mode...');
+  };
+
+  const handleExitReview = () => {
+    console.log('🚪 Exiting review mode...');
+    setIsReviewMode(false);
+  };
+  const savePracticeSessionToDb = async () => {
+    try {
+      if (user?.id) {
+        console.log('🔍 Fetching correctly answered questions for user:', user.id);
+        const { data: attempts, error: attemptsError } = await supabase
+          .from('user_question_attempts')
+          .select('question_id')
+          .eq('user_id', user.id)
+          .eq('is_correct', true);
+
+        if (attemptsError) {
+          console.error('Error fetching user attempts:', attemptsError);
+          // Continue without filtering - better to show questions than fail
+        } else {
+          excludedQuestionIds = attempts?.map(attempt => attempt.question_id) || [];
+          console.log('📝 Excluding', excludedQuestionIds.length, 'correctly answered questions');
+        }
+      }
+
+      // Build the query
+      let query = supabase
+        .from('questions')
+        .select(`
+          id,
+          question_number,
+          question,
+          option_a,
+          option_b,
+          option_c,
+          option_d,
+          correct_answer,
+          explanation,
+          topic,
+          difficulty,
+          question_type,
+          image_url,
+          created_at,
+      await savePracticeSession({
+        topic: settings.topic === 'Mixed' ? 'Mixed Skills' : settings.topic,
+        difficulty: settings.difficulty,
+        totalQuestions: questions.length,
+        correctAnswers: correctAnswers.length,
+      // If we don't have enough new questions, inform the user
+      if (data.length < count && excludedQuestionIds.length > 0) {
+        console.log(`⚠️ Only found ${data.length} new questions out of ${count} requested`);
+        console.log(`📊 User has correctly answered ${excludedQuestionIds.length} questions in this topic`);
+      }
+      
+        timeSpentSeconds: timeSpent
+      });
+    } catch (error) {
+      console.error('Failed to save practice session:', error);
+    }
+  };
+
+  const handleRestart = () => {
+    navigate('/practice');
+  };
+
+  // Show review mode if active
+  if (isReviewMode) {
+    return (
+      <ReviewMode
+        questions={questions}
+        answers={answers}
+        openEndedAnswers={openEndedAnswers}
+        onExit={handleExitReview}
+      />
+    );
   }
-  return context;
+
+  if (questions.length === 0) {
+    return (
+      <div className="min-h-screen bg-white flex items-center justify-center">
+        <div className="text-center">
+          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600 mx-auto mb-4"></div>
+          <p className="text-lg text-gray-600">Generating your practice questions...</p>
+        </div>
+      </div>
+    );
+  }
+
+  if (isComplete) {
+    const percentage = Math.round((score / questions.length) * 100);
+    return (
+      <div className="min-h-screen bg-white py-8">
+        <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8">
+          <div className="bg-white rounded-xl shadow-lg p-8 text-center">
+            <div className="mb-8">
+              <div className={`w-24 h-24 mx-auto rounded-full flex items-center justify-center mb-4 ${
+                percentage >= 80 ? 'bg-green-100 text-green-600' :
+                percentage >= 60 ? 'bg-yellow-100 text-yellow-600' :
+                'bg-red-100 text-red-600'
+              }`}>
+                <span className="text-2xl font-bold">{percentage}%</span>
+              </div>
+              <h1 className="text-3xl font-bold text-gray-900 mb-2">
+                Practice Complete!
+              </h1>
+              <p className="text-lg text-gray-600">
+                You scored {score} out of {questions.length} questions correctly
+              </p>
+            </div>
+
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8">
+              <div className="bg-blue-50 p-4 rounded-lg">
+                <h3 className="font-semibold text-blue-900">Topic</h3>
+                <p className="text-blue-700">{settings.topic}</p>
+              </div>
+              <div className="bg-purple-50 p-4 rounded-lg">
+                <h3 className="font-semibold text-purple-900">Difficulty</h3>
+                <p className="text-purple-700 capitalize">{settings.difficulty}</p>
+              </div>
+              <div className="bg-green-50 p-4 rounded-lg">
+                <h3 className="font-semibold text-green-900">Questions</h3>
+                <p className="text-green-700">{questions.length}</p>
+              </div>
+            </div>
+
+            <div className="flex flex-col sm:flex-row gap-4 justify-center">
+              <button
+                onClick={handleStartReview}
+                className="bg-purple-600 text-white px-6 py-3 rounded-lg font-semibold hover:bg-purple-700 transition-colors flex items-center justify-center"
+              >
+                <Eye className="h-5 w-5 mr-2" />
+                Review Answers
+              </button>
+              <button
+                onClick={handleRestart}
+                className="bg-blue-600 text-white px-6 py-3 rounded-lg font-semibold hover:bg-blue-700 transition-colors flex items-center justify-center"
+              >
+                <RotateCcw className="h-5 w-5 mr-2" />
+                Practice Again
+              </button>
+              <button
+                onClick={() => navigate('/dashboard')}
+                className="bg-gray-600 text-white px-6 py-3 rounded-lg font-semibold hover:bg-gray-700 transition-colors"
+              >
+                View Dashboard
+              </button>
+            </div>
+          </div>
+        </div>
+      </div>
+    );
+  }
+
+  const question = questions[currentQuestion];
+
+  return (
+    <div className="min-h-screen bg-white py-8">
+      <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8">
+        {/* Header */}
+        <div className="bg-white rounded-xl shadow-lg p-6 mb-6">
+          <div className="flex justify-between items-center">
+            <div>
+              <h1 className="text-xl font-semibold text-gray-900">
+                {settings.topic} - {settings.difficulty.charAt(0).toUpperCase() + settings.difficulty.slice(1)}
+              </h1>
+              <p className="text-gray-600">
+                Question {currentQuestion + 1} of {questions.length}
+              </p>
+            </div>
+            
+            {settings.timedMode && (
+              <div className="flex items-center space-x-2 text-lg">
+                <Clock className="h-5 w-5 text-orange-600" />
+                <span className={`font-mono font-semibold ${
+                  timeLeft < 60 ? 'text-red-600' : 'text-gray-700'
+                }`}>
+                  {formatTime(timeLeft)}
+                </span>
+              </div>
+            )}
+          </div>
+          
+          <div className="mt-4 bg-gray-200 rounded-full h-2">
+            <div 
+              className="bg-teal-600 h-2 rounded-full transition-all duration-300"
+              style={{ width: `${((currentQuestion + 1) / questions.length) * 100}%` }}
+            />
+          </div>
+        </div>
+
+        {/* Question */}
+        <div className="bg-white rounded-xl shadow-lg p-6 mb-6">
+          <div className="mb-6">
+            <div className="text-lg font-medium text-gray-900 mb-4 font-sans">
+              <MathRenderer>{question.question}</MathRenderer>
+            </div>
+            
+            {/* Display question image if available */}
+            {question.imageUrl && question.imageUrl.trim() !== '' && question.imageUrl !== 'null' && (
+              <div className="mb-6">
+                <p className="text-sm text-gray-500 mb-2">Question Image:</p>
+                <img
+                  src={question.imageUrl}
+                  alt="Question diagram"
+                  className="max-w-full h-auto max-h-96 rounded-lg border border-gray-200 shadow-sm mx-auto block"
+                  onError={(e) => {
+                    e.currentTarget.style.display = 'none';
+                  }}
+                />
+              </div>
+            )}
+            
+            {question.questionType === 'multiple_choice' ? (
+              <div className="space-y-3">
+                {question.options.map((option, index) => {
+                  const buttonClass = selectedAnswer === index
+                    ? 'border-teal-600 bg-teal-50 text-teal-700'
+                    : 'border-gray-200 hover:border-gray-300';
+                  
+                  return (
+                    <button
+                      key={index}
+                      onClick={() => handleAnswerSelect(index)}
+                      className={`w-full p-4 text-left rounded-lg border-2 transition-all ${buttonClass} cursor-pointer`}
+                    >
+                      <div className="flex items-start space-x-3">
+                        <span className="font-medium">
+                          {String.fromCharCode(65 + index)}.
+                        </span>
+                        <div className="flex-1">
+                          {(option.startsWith('http') || option.startsWith('https://')) && 
+                           (option.includes('.jpg') || option.includes('.png') || option.includes('.gif') || 
+                            option.includes('.svg') || option.includes('.jpeg') || option.includes('.webp') || 
+                            option.includes('supabase') || option.includes('storage')) ? (
+                            <img
+                              src={option}
+                              alt="Option"
+                              className="max-w-full h-auto max-h-48 rounded border border-gray-300 shadow-sm"
+                              onError={(e) => {
+                                e.currentTarget.outerHTML = `<div class="text-red-500 text-sm">Image failed to load</div>`;
+                              }}
+                            />
+                          ) : (
+                            <MathRenderer inline>{option}</MathRenderer>
+                          )}
+                        </div>
+                      </div>
+                    </button>
+                  );
+                })}
+              </div>
+            ) : (
+              <div className="space-y-4">
+                <label className="block text-sm font-medium text-gray-700 mb-2">
+                  Enter your numeric answer:
+                </label>
+                <input
+                  type="text"
+                  value={openEndedAnswer}
+                  onChange={(e) => handleOpenEndedAnswer(e.target.value)}
+                  className="w-full p-4 border-2 border-gray-200 rounded-lg focus:border-teal-600 focus:outline-none text-center text-lg font-medium"
+                  placeholder="Enter number (e.g., 42, 3.14, -5)"
+                />
+              </div>
+            )}
+          </div>
+
+          {/* Explanation Section */}
+          {((question.questionType === 'multiple_choice' && selectedAnswer !== null) || 
+           (question.questionType === 'open_ended' && openEndedAnswer.trim() !== '')) && (
+            <div className="border-t pt-4">
+              <button
+                onClick={() => setShowExplanation(!showExplanation)}
+                className="text-teal-600 hover:text-teal-700 font-medium mb-3"
+              >
+                {showExplanation ? 'Hide Answer' : 'Check Answer'}
+              </button>
+              
+              {showExplanation && (
+                <div className="space-y-4">
+                  {/* Answer Status */}
+                  <div className={`p-4 rounded-lg ${
+                    isAnswerCorrect(currentQuestion)
+                      ? 'bg-green-50 border border-green-200'
+                      : 'bg-red-50 border border-red-200'
+                  }`}>
+                    <div className="flex items-center mb-2">
+                      {isAnswerCorrect(currentQuestion) ? (
+                        <Check className="h-5 w-5 text-green-600 mr-2" />
+                      ) : (
+                        <X className="h-5 w-5 text-red-600 mr-2" />
+                      )}
+                      <span className="font-semibold">
+                        {isAnswerCorrect(currentQuestion) ? 'Correct!' : 'Incorrect'}
+                      </span>
+                    </div>
+                    
+                    {/* Show correct answer for incorrect responses */}
+                    {!isAnswerCorrect(currentQuestion) && (
+                      <p className="text-sm text-gray-700 mt-2">
+                        <strong>Correct answer:</strong> {question.questionType === 'multiple_choice' 
+                          ? `${String.fromCharCode(65 + question.correctAnswer)} - ${question.options[question.correctAnswer]}`
+                          : question.correctAnswerText}
+                      </p>
+                    )}
+                  </div>
+                  
+                  {/* Explanation */}
+                  {question.explanation && (
+                    <div className="p-4 rounded-lg bg-blue-50 border border-blue-200">
+                      <h4 className="font-semibold text-blue-900 mb-2">Explanation:</h4>
+                      <p className="text-blue-800">
+                        <MathRenderer>{question.explanation}</MathRenderer>
+                      </p>
+                    </div>
+                  )}
+                </div>
+              )}
+            </div>
+          )}
+        </div>
+
+        {/* Navigation */}
+        <div className="flex justify-between items-center">
+          <button
+            onClick={handlePrevious}
+            disabled={currentQuestion === 0}
+            className={`flex items-center space-x-2 px-4 py-2 rounded-lg font-medium transition-colors ${
+              currentQuestion === 0
+                ? 'bg-gray-200 text-gray-400 cursor-not-allowed'
+                : 'bg-gray-600 text-white hover:bg-gray-700'
+            }`}
+          >
+            <ArrowLeft className="h-4 w-4" />
+            <span>Previous</span>
+          </button>
+
+          {currentQuestion === questions.length - 1 ? (
+            <button
+              onClick={handleComplete}
+              className="bg-green-600 text-white px-6 py-2 rounded-lg font-medium hover:bg-green-700 transition-colors"
+            >
+              Complete Practice
+            </button>
+          ) : (
+            <button
+              onClick={handleNext}
+              className="flex items-center space-x-2 bg-teal-600 text-white px-4 py-2 rounded-lg font-medium hover:bg-teal-700 transition-colors"
+            >
+              <span>Next</span>
+              <ArrowRight className="h-4 w-4" />
+            </button>
+          )}
+        </div>
+      </div>
+    </div>
+  );
 };
+
+export default QuestionGenerator;
