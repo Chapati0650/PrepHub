@@ -424,19 +424,32 @@ const QuestionGenerator = () => {
   };
 
   const savePracticeSessionToDb = async () => {
-    try {
       const correctAnswers = questions.filter((question, index) => {
         if (question.questionType === 'multiple_choice') {
           return answers[index] === question.correctAnswer;
         } else {
           return openEndedAnswers[index] === question.correctAnswerText;
         }
-      });
 
       const timeSpent = settings.timedMode 
         ? initialTotalTime - timeLeft
         : 0;
 
+      // Record individual question attempts
+      console.log('📝 Recording individual question attempts...');
+      for (let i = 0; i < questions.length; i++) {
+        const question = questions[i];
+        const isCorrect = question.questionType === 'multiple_choice' 
+          ? answers[i] === question.correctAnswer
+          : openEndedAnswers[i] === question.correctAnswerText;
+        
+        try {
+          await recordQuestionAttempt(question.id, isCorrect);
+        } catch (error) {
+          console.error(`Failed to record attempt for question ${question.id}:`, error);
+          // Continue with other questions even if one fails
+        }
+      }
       await savePracticeSession({
         topic: settings.topic === 'Mixed' ? 'Mixed Skills' : settings.topic,
         difficulty: settings.difficulty,
