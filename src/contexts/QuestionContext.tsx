@@ -451,12 +451,13 @@ const QuestionGenerator = () => {
           is_active,
           access_level
         `)
-        .eq('is_active', true)
+        .eq('topic', skill)
         .in('access_level', allowedAccessLevels)
+        .eq('is_active', true)
         .limit(Math.min(count, 50));
         
       if (error) {
-        console.error('Error fetching mixed questions:', error);
+        console.error('Error fetching questions by skill:', error);
         throw error;
       }
       
