@@ -415,60 +415,33 @@ const QuestionGenerator = () => {
 
   const handleStartReview = () => {
     console.log('🔍 Starting review mode...');
+    setIsReviewMode(true);
   };
 
   const handleExitReview = () => {
     console.log('🚪 Exiting review mode...');
     setIsReviewMode(false);
   };
+
   const savePracticeSessionToDb = async () => {
     try {
-      if (user?.id) {
-        console.log('🔍 Fetching correctly answered questions for user:', user.id);
-        const { data: attempts, error: attemptsError } = await supabase
-          .from('user_question_attempts')
-          .select('question_id')
-          .eq('user_id', user.id)
-          .eq('is_correct', true);
-
-        if (attemptsError) {
-          console.error('Error fetching user attempts:', attemptsError);
-          // Continue without filtering - better to show questions than fail
+      const correctAnswers = questions.filter((question, index) => {
+        if (question.questionType === 'multiple_choice') {
+          return answers[index] === question.correctAnswer;
         } else {
-          excludedQuestionIds = attempts?.map(attempt => attempt.question_id) || [];
-          console.log('📝 Excluding', excludedQuestionIds.length, 'correctly answered questions');
+          return openEndedAnswers[index] === question.correctAnswerText;
         }
-      }
+      });
 
-      // Build the query
-      let query = supabase
-        .from('questions')
-        .select(`
-          id,
-          question_number,
-          question,
-          option_a,
-          option_b,
-          option_c,
-          option_d,
-          correct_answer,
-          explanation,
-          topic,
-          difficulty,
-          question_type,
-          image_url,
-          created_at,
+      const timeSpent = settings.timedMode 
+        ? initialTotalTime - timeLeft
+        : 0;
+
       await savePracticeSession({
         topic: settings.topic === 'Mixed' ? 'Mixed Skills' : settings.topic,
         difficulty: settings.difficulty,
         totalQuestions: questions.length,
         correctAnswers: correctAnswers.length,
-      // If we don't have enough new questions, inform the user
-      if (data.length < count && excludedQuestionIds.length > 0) {
-        console.log(`⚠️ Only found ${data.length} new questions out of ${count} requested`);
-        console.log(`📊 User has correctly answered ${excludedQuestionIds.length} questions in this topic`);
-      }
-      
         timeSpentSeconds: timeSpent
       });
     } catch (error) {
