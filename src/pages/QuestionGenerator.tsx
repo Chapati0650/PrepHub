@@ -452,6 +452,7 @@ const QuestionGenerator = () => {
           // Continue with other questions even if one fails
         }
       }
+      
       await savePracticeSession({
         topic: settings.topic === 'Mixed' ? 'Mixed Skills' : settings.topic,
         difficulty: settings.difficulty,
