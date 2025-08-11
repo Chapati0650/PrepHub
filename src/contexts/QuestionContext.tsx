@@ -403,41 +403,43 @@ const QuestionGenerator = () => {
     savePracticeSessionToDb();
     setIsComplete(true);
   };
-      // Use direct query with proper limits and access level filtering
-      const { data, error } = await supabase
-        .from('questions')
-        .select(`
-       .eq('is_active', true)
-       .in('access_level', ['free', 'premium']);
-          question_number,
-          question,
-          option_a,
-          option_b,
-          option_c,
-          option_d,
-          correct_answer,
-          explanation,
-          topic,
-          difficulty,
-          question_type,
-          image_url,
-          created_at,
-          created_by,
-          is_active,
-          access_level
-          access_level
-        `)
-        .eq('is_active', true)
-        .in('access_level', allowedAccessLevels)
-        .limit(count);
-        
-      if (error) {
-        console.error('Error fetching mixed questions:', error);
-        throw error;
-      }
-      
-      console.log('Direct query successful, data:', data);
-      return mapDatabaseToQuestionData(data);
+
+  const isAnswerCorrect = (questionIndex: number) => {
+    const question = questions[questionIndex];
+    if (question.questionType === 'multiple_choice') {
+      return answers[questionIndex] === question.correctAnswer;
+    } else {
+      return openEndedAnswers[questionIndex] === question.correctAnswerText;
+    }
+  };
+
+  const handleStartReview = () => {
+    console.log('🔍 Starting review mode...');
+  };
+
+  const handleExitReview = () => {
+    console.log('🚪 Exiting review mode...');
+    setIsReviewMode(false);
+  };
+  const savePracticeSessionToDb = async () => {
+    try {
+      const correctAnswers = questions.filter((question, index) => {
+        if (question.questionType === 'multiple_choice') {
+          return answers[index] === question.correctAnswer;
+        } else {
+          return openEndedAnswers[index] === question.correctAnswerText;
+   };
+    return (
+      <div className="min-h-screen bg-white flex items-center justify-center">
+        <div className="text-center">
+          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600 mx-auto mb-4"></div>
+          <p className="text-lg text-gray-600">Generating your practice questions...</p>
+        </div>
+      </div>
+    );
+  }
+
+  if (isComplete) {
     const percentage = Math.round((score / questions.length) * 100);
     return (
       <div className="min-h-screen bg-white py-8">
