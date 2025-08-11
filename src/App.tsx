@@ -1,42 +1,48 @@
 import React from 'react';
-import { BrowserRouter as Router, Routes, Route, Navigate } from 'react-router-dom';
+import { BrowserRouter as Router, Routes, Route } from 'react-router-dom';
+import { GoogleOAuthProvider } from '@react-oauth/google';
 import { AuthProvider } from './contexts/AuthContext';
 import { QuestionProvider } from './contexts/QuestionContext';
+import Navbar from './components/Navbar';
 import Home from './pages/Home';
+import Practice from './pages/Practice';
+import Dashboard from './pages/Dashboard';
 import Login from './pages/Login';
 import Register from './pages/Register';
-import Dashboard from './pages/Dashboard';
-import Practice from './pages/Practice';
+import QuestionGenerator from './pages/QuestionGenerator';
 import Learn from './pages/Learn';
-import Upgrade from './pages/Upgrade';
-import AuthCallback from './pages/AuthCallback';
-import QuestionList from './pages/QuestionList';
-import QuestionViewer from './pages/QuestionViewer';
-import Navbar from './components/Navbar';
+import QuestionUpload from './pages/QuestionUpload';
+import Upgrade from './pages/Upgrade'; // Import the new Upgrade page
 
 function App() {
+  // Replace this with your actual Google Client ID from Google Cloud Console
+  const GOOGLE_CLIENT_ID = import.meta.env.VITE_GOOGLE_CLIENT_ID || "your-google-client-id-here";
+
   return (
-    <Router>
-      <AuthProvider>
-        <QuestionProvider>
-          <div className="min-h-screen bg-white">
-            <Routes>
-              <Route path="/" element={<Home />} />
-              <Route path="/login" element={<Login />} />
-              <Route path="/register" element={<Register />} />
-              <Route path="/dashboard" element={<Dashboard />} />
-              <Route path="/practice" element={<Practice />} />
-              <Route path="/learn" element={<Learn />} />
-              <Route path="/upgrade" element={<Upgrade />} />
-              <Route path="/auth/callback" element={<AuthCallback />} />
-              <Route path="/questions" element={<QuestionList />} />
-              <Route path="/question/:questionId" element={<QuestionViewer />} />
-              <Route path="*" element={<Navigate to="/" replace />} />
-            </Routes>
-          </div>
-        </QuestionProvider>
-      </AuthProvider>
-    </Router>
+    <GoogleOAuthProvider clientId={GOOGLE_CLIENT_ID}>
+      <Router>
+        <AuthProvider>
+          <QuestionProvider>
+            <div className="min-h-screen bg-gray-50">
+              <Navbar />
+              <main className="pt-16">
+                <Routes>
+                  <Route path="/" element={<Home />} />
+                  <Route path="/practice" element={<Practice />} />
+                  <Route path="/dashboard" element={<Dashboard />} />
+                  <Route path="/login" element={<Login />} />
+                  <Route path="/register" element={<Register />} />
+                  <Route path="/generator" element={<QuestionGenerator />} />
+                  <Route path="/learn" element={<Learn />} />
+                  <Route path="/upload" element={<QuestionUpload />} />
+                  <Route path="/upgrade" element={<Upgrade />} /> {/* Add the new Upgrade route */}
+                </Routes>
+              </main>
+            </div>
+          </QuestionProvider>
+        </AuthProvider>
+      </Router>
+    </GoogleOAuthProvider>
   );
 }
 

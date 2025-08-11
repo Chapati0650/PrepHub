@@ -1,761 +1,364 @@
-import React, { useState, useEffect } from 'react';
-import { useLocation, useNavigate } from 'react-router-dom';
-import { Clock, Check, X, ArrowRight, ArrowLeft, RotateCcw, Eye, Home } from 'lucide-react';
-import MathRenderer from '../components/MathRenderer';
-import { useQuestions } from '../contexts/QuestionContext';
+import React, { useEffect, useMemo, useState } from 'react';
+import { useNavigate } from 'react-router-dom';
+import { Clock, Target, BookOpen, Play, Zap, Settings, ChevronRight } from 'lucide-react';
+import { useAuth } from '../contexts/AuthContext';
 
-interface QuestionData {
-  id: string;
-  question: string;
-  questionType: 'multiple_choice' | 'open_ended';
-  options: string[];
-  correctAnswer: number;
-  correctAnswerText: string;
-  explanation: string;
-  topic: string;
-  difficulty: string;
-}
+const Practice = () => {
+  const [selectedTopic, setSelectedTopic] = useState('');
+  const [questionCount, setQuestionCount] = useState(10);
 
-// Separate Review Component
-const ReviewMode = ({ 
-  questions, 
-  answers, 
-  openEndedAnswers, 
-  onExit 
-}: {
-  questions: QuestionData[];
-  answers: (number | null)[];
-  openEndedAnswers: string[];
-  onExit: () => void;
-}) => {
-  const [currentQuestion, setCurrentQuestion] = useState(0);
+  // Persist timedMode and time settings in localStorage
+  const [timedMode, setTimedMode] = useState<boolean>(() => {
+    const v = localStorage.getItem('timedMode');
+    return v ? JSON.parse(v) : false;
+  });
+
+  // Backward-compat field (minutes). Keep but derive from unified controls below.
+  const [customTimePerQuestion, setCustomTimePerQuestion] = useState<number>(() => {
+    const v = localStorage.getItem('timeValue');
+    const unit = localStorage.getItem('timeUnit') || 'min';
+    const num = v ? Number(v) : 2;
+    return unit === 'sec' ? Math.max(0.5, num / 60) : Math.max(0.5, num);
+  });
+
+  // New unified time controls (value + unit)
+  const [timeValue, setTimeValue] = useState<number>(() => {
+    const v = localStorage.getItem('timeValue');
+    return v ? Number(v) : 2; // default 2 minutes
+  });
+  const [timeUnit, setTimeUnit] = useState<'min' | 'sec'>(() => {
+    const v = localStorage.getItem('timeUnit');
+    return v === 'sec' ? 'sec' : 'min';
+  });
+
+  // Derived seconds per question
+  const secondsPerQuestion = useMemo(() => {
+    const v = Number.isFinite(timeValue) ? Math.max(0.5, timeValue) : 2;
+    return timeUnit === 'min' ? Math.round(v * 60) : Math.round(v);
+  }, [timeValue, timeUnit]);
+
+  // Keep customTimePerQuestion (minutes) updated for any downstream code that still uses it
+  useEffect(() => {
+    setCustomTimePerQuestion(secondsPerQuestion / 60);
+  }, [secondsPerQuestion]);
+
+  // Persist settings
+  useEffect(() => {
+    localStorage.setItem('timedMode', JSON.stringify(timedMode));
+  }, [timedMode]);
+  useEffect(() => {
+    localStorage.setItem('timeValue', String(timeValue));
+  }, [timeValue]);
+  useEffect(() => {
+    localStorage.setItem('timeUnit', timeUnit);
+  }, [timeUnit]);
+
+  // Get user from AuthContext to check premium status
+  const { user } = useAuth(); 
   const navigate = useNavigate();
+  const [error, setError] = useState('');
 
-  const isAnswerCorrect = (questionIndex: number) => {
-    const question = questions[questionIndex];
-    if (question.questionType === 'multiple_choice') {
-      return answers[questionIndex] === question.correctAnswer;
-    } else {
-      return openEndedAnswers[questionIndex] === question.correctAnswerText;
+  // Debug user premium status
+  useEffect(() => {
+    console.log('🏃 Practice page - Current user:', user);
+    console.log('🏃 Practice page - Is premium:', user?.is_premium);
+    
+    // Also check the database directly for debugging
+    if (user?.id) {
+      import('../lib/supabase').then(({ supabase }) => {
+        supabase
+          .from('users')
+          .select('is_premium')
+          .eq('id', user.id)
+          .single()
+          .then(({ data, error }) => {
+            if (error) {
+              console.log('🏃 Error checking DB premium status:', error);
+            } else {
+              console.log('🏃 DB premium status:', data?.is_premium);
+              console.log('🏃 Local user premium status:', user.is_premium);
+              console.log('🏃 Status match:', data?.is_premium === user.is_premium);
+            }
+          });
+      });
     }
-  };
+  }, [user]);
 
-  const handleNext = () => {
-    if (currentQuestion < questions.length - 1) {
-      setCurrentQuestion(currentQuestion + 1);
+  const topics = [
+    {
+      name: 'Algebra',
+      description: 'Linear equations, quadratics, systems, inequalities',
+      icon: '📐',
+      color: 'from-blue-500 to-cyan-500'
+    },
+    {
+      name: 'Advanced Math',
+      description: 'Functions, polynomials, radicals, exponentials',
+      icon: '🧮',
+      color: 'from-purple-500 to-pink-500'
+    },
+    {
+      name: 'Problem Solving and Data Analysis',
+      description: 'Statistics, probability, data interpretation',
+      icon: '📊',
+      color: 'from-green-500 to-emerald-500'
+    },
+    {
+      name: 'Geo/Trig',
+      description: 'Geometry, trigonometry, coordinate geometry',
+      icon: '📏',
+      color: 'from-orange-500 to-red-500'
     }
-  };
+  ];
 
-  const handlePrevious = () => {
-    if (currentQuestion > 0) {
-      setCurrentQuestion(currentQuestion - 1);
+  const handleStartPractice = () => {
+    if (!user) {
+      navigate('/login');
+      return;
     }
-  };
 
-  const question = questions[currentQuestion];
+    setError('');
+    // Adjust question count based on user's premium status (use it!)
+    const actualQuestionCount = user?.is_premium ? questionCount : Math.min(questionCount, 30);
+
+    navigate('/generator', {
+      state: {
+        topic: selectedTopic || 'Mixed',
+        difficulty: 'hard',
+        questionCount: actualQuestionCount,
+        timedMode,
+        // New canonical value the generator can rely on:
+        secondsPerQuestion,
+        // Backward compatibility for any existing code reading minutes:
+        customTimePerQuestion, // minutes
+        timeUnit,              // 'min' | 'sec' (in case you want to display it later)
+      },
+    });
+  };
 
   return (
     <div className="min-h-screen bg-white py-8">
-      <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8">
+      <div className="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8">
         {/* Header */}
-        <div className="bg-purple-50 border-2 border-purple-200 rounded-xl shadow-lg p-6 mb-6">
-          <div className="flex justify-between items-center">
-            <div>
-              <h1 className="text-xl font-semibold text-purple-900">
-                Review Mode: Question {currentQuestion + 1} of {questions.length}
-              </h1>
-              <p className="text-purple-700">
-                <span className={`ml-4 px-2 py-1 rounded-full text-xs font-medium ${
-                  isAnswerCorrect(currentQuestion) 
-                    ? 'bg-green-100 text-green-800' 
-                    : 'bg-red-100 text-red-800'
-                }`}>
-                  {isAnswerCorrect(currentQuestion) ? 'Correct' : 'Incorrect'}
-                </span>
-              </p>
-            </div>
-            <button
-              onClick={onExit}
-              className="bg-gray-600 text-white px-4 py-2 rounded-lg font-medium hover:bg-gray-700 transition-colors"
-            >
-              Exit Review
-            </button>
+        <div className="text-center mb-12 animate-slide-up">
+          <div className="inline-flex items-center px-4 py-2 rounded-full bg-gradient-primary text-white text-sm font-medium mb-6">
+            <Settings className="h-4 w-4 mr-2" />
+            Customize Your Session
           </div>
-          
-          <div className="mt-4 bg-gray-200 rounded-full h-2">
-            <div 
-              className="bg-purple-600 h-2 rounded-full transition-all duration-300"
-              style={{ width: `${((currentQuestion + 1) / questions.length) * 100}%` }}
-            />
-          </div>
+          <h1 className="text-4xl md:text-5xl lg:text-6xl font-bold text-gray-900 mb-6">
+            Practice Session
+            <span className="block bg-gradient-primary bg-clip-text text-transparent">
+              Setup
+            </span>
+          </h1>
+          <p className="text-xl md:text-2xl text-gray-600 max-w-3xl mx-auto">
+            Choose your preferences to generate a personalized SAT Math practice module
+          </p>
         </div>
 
-        {/* Question */}
-        <div className="bg-white rounded-xl shadow-lg p-6 mb-6">
-          <div className="mb-6">
-            <div className="text-lg font-medium text-gray-900 mb-4 font-sans">
-              <MathRenderer>{question.question}</MathRenderer>
-            </div>
-            
-            {/* Display question image if available */}
-            {question.imageUrl && question.imageUrl.trim() !== '' && question.imageUrl !== 'null' && (
-              <div className="mb-6">
-                <p className="text-sm text-gray-500 mb-2">Question Image:</p>
-                <img
-                  src={question.imageUrl}
-                  alt="Question diagram"
-                  className="max-w-full h-auto max-h-96 rounded-lg border border-gray-200 shadow-sm mx-auto block"
-                  onError={(e) => {
-                    e.currentTarget.style.display = 'none';
-                  }}
-                />
+        <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
+          {/* Main Configuration */}
+          <div className="lg:col-span-2 space-y-8">
+            {/* Skill Selection */}
+            <div className="bg-white border border-gray-200 rounded-3xl p-8 animate-scale-in shadow-lg">
+              <h2 className="text-2xl font-bold text-gray-900 mb-6 flex items-center">
+                <BookOpen className="h-6 w-6 mr-3 text-blue-300" />
+                Select Skill Category
+              </h2>
+              
+              <div className="bg-blue-500/20 border border-blue-300/30 rounded-2xl p-4 mb-6">
+                <p className="text-blue-800 text-sm">
+                  <strong>All questions are HARD difficulty.</strong> Choose a specific skill or select "Mixed Skills" for questions from all categories.
+                </p>
               </div>
-            )}
-            
-            {question.questionType === 'multiple_choice' ? (
-              <div className="space-y-3">
-                {question.options.map((option, index) => {
-                  const isUserAnswer = answers[currentQuestion] === index;
-                  const isCorrectAnswer = index === question.correctAnswer;
-                  const isUserCorrect = answers[currentQuestion] === question.correctAnswer;
-                  
-                  let buttonClass = '';
-                  let iconElement = null;
-                  
-                  if (isCorrectAnswer) {
-                    buttonClass = 'border-green-500 bg-green-50 text-green-700';
-                    iconElement = <Check className="h-5 w-5 text-green-600" />;
-                  } else if (isUserAnswer && !isUserCorrect) {
-                    buttonClass = 'border-red-500 bg-red-50 text-red-700';
-                    iconElement = <X className="h-5 w-5 text-red-600" />;
-                  } else {
-                    buttonClass = 'border-gray-200 bg-gray-50 text-gray-600';
-                  }
-                  
-                  return (
-                    <div
-                      key={index}
-                      className={`w-full p-4 text-left rounded-lg border-2 transition-all ${buttonClass} cursor-default`}
-                    >
-                      <div className="flex items-start space-x-3">
-                        <div className="flex items-center space-x-2">
-                          <span className="font-medium">
-                            {String.fromCharCode(65 + index)}.
-                          </span>
-                          {iconElement}
-                        </div>
-                        <div className="flex-1">
-                          {(option.startsWith('http') || option.startsWith('https://')) && 
-                           (option.includes('.jpg') || option.includes('.png') || option.includes('.gif') || 
-                            option.includes('.svg') || option.includes('.jpeg') || option.includes('.webp') || 
-                            option.includes('supabase') || option.includes('storage')) ? (
-                            <img
-                              src={option}
-                              alt="Option"
-                              className="max-w-full h-auto max-h-48 rounded border border-gray-300 shadow-sm"
-                              onError={(e) => {
-                                e.currentTarget.outerHTML = `<div class="text-red-500 text-sm">Image failed to load</div>`;
-                              }}
-                            />
-                          ) : (
-                            <MathRenderer inline>{option}</MathRenderer>
-                          )}
-                        </div>
-                      </div>
-                    </div>
-                  );
-                })}
-              </div>
-            ) : (
-              <div className="space-y-4">
-                <div className={`p-4 rounded-lg border-2 ${
-                  openEndedAnswers[currentQuestion] === question.correctAnswerText
-                    ? 'border-green-500 bg-green-50'
-                    : 'border-red-500 bg-red-50'
-                }`}>
-                  <div className="flex items-center mb-2">
-                    {openEndedAnswers[currentQuestion] === question.correctAnswerText ? (
-                      <Check className="h-5 w-5 text-green-600 mr-2" />
-                    ) : (
-                      <X className="h-5 w-5 text-red-600 mr-2" />
-                    )}
-                    <span className="font-semibold">Your Answer:</span>
-                  </div>
-                  <p className="text-lg font-mono">
-                    {openEndedAnswers[currentQuestion] || 'No answer provided'}
-                  </p>
-                </div>
-                
-                {openEndedAnswers[currentQuestion] !== question.correctAnswerText && (
-                  <div className="p-4 rounded-lg border-2 border-green-500 bg-green-50">
-                    <div className="flex items-center mb-2">
-                      <Check className="h-5 w-5 text-green-600 mr-2" />
-                      <span className="font-semibold text-green-800">Correct Answer:</span>
-                    </div>
-                    <p className="text-lg font-mono text-green-700">
-                      {question.correctAnswerText}
-                    </p>
-                  </div>
-                )}
-              </div>
-            )}
-          </div>
 
-          {/* Explanation Section - Always shown in review mode */}
-          <div className="border-t pt-4">
-            <div className="space-y-4">
-              {/* Answer Status */}
-              <div className={`p-4 rounded-lg ${
-                isAnswerCorrect(currentQuestion)
-                  ? 'bg-green-50 border border-green-200'
-                  : 'bg-red-50 border border-red-200'
-              }`}>
-                <div className="flex items-center mb-2">
-                  {isAnswerCorrect(currentQuestion) ? (
-                    <Check className="h-5 w-5 text-green-600 mr-2" />
-                  ) : (
-                    <X className="h-5 w-5 text-red-600 mr-2" />
-                  )}
-                  <span className="font-semibold">
-                    {isAnswerCorrect(currentQuestion) ? 'Correct!' : 'Incorrect'}
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-4">
+                <button
+                  onClick={() => setSelectedTopic('')}
+                  className={`group p-6 rounded-2xl border-2 transition-all duration-300 text-left ${
+                    selectedTopic === ''
+                      ? 'border-blue-400 bg-blue-50 shadow-lg'
+                      : 'border-gray-200 hover:border-gray-300 bg-white'
+                  }`}
+                >
+                  <div className="flex items-center mb-3">
+                    <span className="text-2xl mr-3">🎯</span>
+                    <span className="text-gray-900 font-semibold">Mixed Skills</span>
+                  </div>
+                  <p className="text-gray-600 text-sm">Questions from all categories</p>
+                  <ChevronRight className={`h-5 w-5 mt-2 transition-transform ${selectedTopic === '' ? 'text-blue-500 translate-x-1' : 'text-gray-400'}`} />
+                </button>
+
+                {topics.map((topic) => (
+                  <button
+                    key={topic.name}
+                    onClick={() => setSelectedTopic(topic.name)}
+                    className={`group p-6 rounded-2xl border-2 transition-all duration-300 text-left ${
+                      selectedTopic === topic.name
+                        ? 'border-blue-400 bg-blue-50 shadow-lg'
+                        : 'border-gray-200 hover:border-gray-300 bg-white'
+                    }`}
+                  >
+                    <div className="flex items-center mb-3">
+                      <span className="text-2xl mr-3">{topic.icon}</span>
+                      <span className="text-gray-900 font-semibold">{topic.name}</span>
+                    </div>
+                    <p className="text-gray-600 text-sm">{topic.description}</p>
+                    <ChevronRight className={`h-5 w-5 mt-2 transition-transform ${selectedTopic === topic.name ? 'text-blue-500 translate-x-1' : 'text-gray-400'}`} />
+                  </button>
+                ))}
+              </div>
+            </div>
+
+            {/* Question Count */}
+            <div className="bg-white border border-gray-200 rounded-3xl p-8 animate-scale-in shadow-lg" style={{ animationDelay: '0.1s' }}>
+              <h2 className="text-2xl font-bold text-gray-900 mb-6 flex items-center">
+                <Target className="h-6 w-6 mr-3 text-green-300" />
+                Number of Questions
+              </h2>
+              
+              <div className="space-y-6">
+                <div className="flex items-center justify-between">
+                  <span className="text-gray-600">Questions:</span>
+                  <span className="text-2xl font-bold text-gray-900 bg-gray-100 px-4 py-2 rounded-xl min-w-[4rem] text-center">
+                    {questionCount}
                   </span>
                 </div>
                 
-                {/* Show correct answer for incorrect responses */}
-                {!isAnswerCorrect(currentQuestion) && (
-                  <p className="text-sm text-gray-700 mt-2">
-                    <strong>Correct answer:</strong> {question.questionType === 'multiple_choice' 
-                      ? `${String.fromCharCode(65 + question.correctAnswer)} - ${question.options[question.correctAnswer]}`
-                      : question.correctAnswerText}
-                  </p>
+                <div className="relative">
+                  {/* Max questions based on premium status */}
+                  {(() => {
+                    const maxQuestions = user?.is_premium ? 300 : 30;
+                    const fillPercent = ((questionCount - 1) / (20 - 1)) * 100;
+                    return (
+                      <>
+                        <input
+                          type="range"
+                          min="1"
+                          max="20"
+                          value={questionCount}
+                          onChange={(e) => setQuestionCount(Number(e.target.value))}
+                          className="w-full appearance-none cursor-pointer range-slider"
+                          style={{ '--fill-percent': `${fillPercent}%` } as React.CSSProperties}
+                        />
+                        <div className="flex justify-between text-gray-500 text-sm mt-2">
+                          <span>1</span> {/* Min value */}
+                          <span>10</span> {/* Midpoint of slider (1-20) */}
+                          <span>20</span> {/* Max value of slider */}
+                        </div>
+                        {!user?.is_premium && (
+                          <p className="mt-3 text-xs text-gray-500">
+                            Free accounts capped at 30 questions. Premium unlocks 300.
+                          </p>
+                        )}
+                      </>
+                    );
+                  })()}
+                </div>
+                {/* Message for free users */}
+                {!user?.is_premium && (
+                  <div className="bg-yellow-500/20 border border-yellow-300/30 rounded-2xl p-4 mt-6">
+                    <p className="text-yellow-800 text-sm">
+                      You are currently on a free account, limited to 30 questions. Upgrade to Premium to access all 300 questions!
+                    </p>
+                    <button
+                      onClick={() => {
+                        navigate('/upgrade');
+                        setTimeout(() => window.scrollTo(0, 0), 100);
+                      }}
+                      className="mt-3 bg-gradient-primary text-white px-4 py-2 rounded-xl font-semibold text-sm hover:shadow-lg transition-all duration-300"
+                    >
+                      Upgrade to Premium
+                    </button>
+                  </div>
                 )}
               </div>
-              
-              {/* Explanation */}
-              {question.explanation && (
-                <div className="p-4 rounded-lg bg-blue-50 border border-blue-200">
-                  <h4 className="font-semibold text-blue-900 mb-2">Explanation:</h4>
-                  <p className="text-blue-800">
-                    <MathRenderer>{question.explanation}</MathRenderer>
-                  </p>
+            </div>
+
+            {/* Timed Mode */}
+            <div className={`rounded-3xl p-8 animate-scale-in shadow-lg transition-all duration-300 ${
+              timedMode 
+                ? 'bg-purple-50 border-2 border-purple-300' 
+                : 'bg-white border border-gray-200'
+            }`} style={{ animationDelay: '0.2s' }}>
+              <div className="flex items-center justify-between mb-6">
+                <div className="flex items-center">
+                  <Clock className={`h-6 w-6 mr-3 transition-colors ${
+                    timedMode ? 'text-purple-600' : 'text-purple-300'
+                  }`} />
+                  <h2 className="text-2xl font-bold text-gray-900">Timed Mode</h2>
                 </div>
-              )}
+              </div>
+              
+              <div className="text-center py-8">
+                <p className="text-2xl font-semibold text-gray-500">Coming Soon</p>
+                <p className="text-gray-400 mt-2">Timed practice mode will be available in a future update</p>
+              </div>
             </div>
           </div>
-        </div>
 
-        {/* Navigation */}
-        <div className="flex justify-between items-center">
-          <button
-            onClick={handlePrevious}
-            disabled={currentQuestion === 0}
-            className={`flex items-center space-x-2 px-4 py-2 rounded-lg font-medium transition-colors ${
-              currentQuestion === 0
-                ? 'bg-gray-200 text-gray-400 cursor-not-allowed'
-                : 'bg-purple-600 text-white hover:bg-purple-700'
-            }`}
-          >
-            <ArrowLeft className="h-4 w-4" />
-            <span>Previous</span>
-          </button>
-
-          <div className="flex items-center space-x-4">
-            <button
-              onClick={() => navigate('/dashboard')}
-              className="flex items-center space-x-2 bg-gray-600 text-white px-4 py-2 rounded-lg font-medium hover:bg-gray-700 transition-colors"
-            >
-              <Home className="h-4 w-4" />
-              <span>Dashboard</span>
-            </button>
-            <button
-              onClick={() => navigate('/practice')}
-              className="flex items-center space-x-2 bg-blue-600 text-white px-4 py-2 rounded-lg font-medium hover:bg-blue-700 transition-colors"
-            >
-              <RotateCcw className="h-4 w-4" />
-              <span>Practice Again</span>
-            </button>
-          </div>
-
-          <button
-            onClick={handleNext}
-            disabled={currentQuestion === questions.length - 1}
-            className={`flex items-center space-x-2 px-4 py-2 rounded-lg font-medium transition-colors ${
-              currentQuestion === questions.length - 1
-                ? 'bg-gray-200 text-gray-400 cursor-not-allowed'
-                : 'bg-purple-600 text-white hover:bg-purple-700'
-            }`}
-          >
-            <span>Next</span>
-            <ArrowRight className="h-4 w-4" />
-          </button>
-        </div>
-      </div>
-    </div>
-  );
-};
-
-const QuestionGenerator = () => {
-  const location = useLocation();
-  const navigate = useNavigate();
-  const { generateQuestions, savePracticeSession } = useQuestions();
-  const [questions, setQuestions] = useState<QuestionData[]>([]);
-  const [currentQuestion, setCurrentQuestion] = useState(0);
-  const [selectedAnswer, setSelectedAnswer] = useState<number | null>(null);
-  const [openEndedAnswer, setOpenEndedAnswer] = useState('');
-  const [showExplanation, setShowExplanation] = useState(false);
-  const [answers, setAnswers] = useState<(number | null)[]>([]);
-  const [openEndedAnswers, setOpenEndedAnswers] = useState<string[]>([]);
-  const [timeLeft, setTimeLeft] = useState(0);
-  const [initialTotalTime, setInitialTotalTime] = useState(0);
-  const [isComplete, setIsComplete] = useState(false);
-  const [isReviewMode, setIsReviewMode] = useState(false);
-  const [score, setScore] = useState(0);
-
-  const settings = location.state || {
-    topic: 'Algebra',
-    difficulty: 'medium',
-    questionCount: 10,
-    timedMode: false,
-    customTimePerQuestion: 2
-  };
-
-  useEffect(() => {
-    const loadQuestions = async () => {
-      const generatedQuestions = await generateQuestions(settings);
-      setQuestions(generatedQuestions);
-      setAnswers(new Array(generatedQuestions.length).fill(null));
-      setOpenEndedAnswers(new Array(generatedQuestions.length).fill(''));
-      
-      if (settings.timedMode) {
-        const totalTime = generatedQuestions.length * (settings.customTimePerQuestion * 60);
-        setTimeLeft(totalTime);
-        setInitialTotalTime(totalTime);
-      }
-    };
-
-    loadQuestions();
-  }, [settings]);
-
-  useEffect(() => {
-    if (settings.timedMode && timeLeft > 0 && !isComplete) {
-      const timer = setInterval(() => {
-        setTimeLeft(prev => {
-          if (prev <= 1) {
-            setIsComplete(true);
-            return 0;
-          }
-          return prev - 1;
-        });
-      }, 1000);
-
-      return () => clearInterval(timer);
-    }
-  }, [timeLeft, isComplete, settings.timedMode]);
-
-  const formatTime = (seconds: number) => {
-    const mins = Math.floor(seconds / 60);
-    const secs = seconds % 60;
-    return `${mins}:${secs.toString().padStart(2, '0')}`;
-  };
-
-  const handleAnswerSelect = (answerIndex: number) => {
-    setSelectedAnswer(answerIndex);
-    const newAnswers = [...answers];
-    newAnswers[currentQuestion] = answerIndex;
-    setAnswers(newAnswers);
-  };
-
-  const handleOpenEndedAnswer = (answer: string) => {
-    setOpenEndedAnswer(answer);
-    const newAnswers = [...openEndedAnswers];
-    newAnswers[currentQuestion] = answer;
-    setOpenEndedAnswers(newAnswers);
-  };
-
-  const handleNext = () => {
-    if (currentQuestion < questions.length - 1) {
-      setCurrentQuestion(currentQuestion + 1);
-      setSelectedAnswer(answers[currentQuestion + 1]);
-      setOpenEndedAnswer(openEndedAnswers[currentQuestion + 1] || '');
-      setShowExplanation(false);
-    }
-  };
-
-  const handlePrevious = () => {
-    if (currentQuestion > 0) {
-      setCurrentQuestion(currentQuestion - 1);
-      setSelectedAnswer(answers[currentQuestion - 1]);
-      setOpenEndedAnswer(openEndedAnswers[currentQuestion - 1] || '');
-      setShowExplanation(false);
-    }
-  };
-
-  const handleComplete = () => {
-    const correctAnswers = questions.filter((question, index) => {
-      if (question.questionType === 'multiple_choice') {
-        return answers[index] === question.correctAnswer;
-      } else {
-        return openEndedAnswers[index] === question.correctAnswerText;
-      }
-    });
-    
-    setScore(correctAnswers.length);
-    savePracticeSessionToDb();
-    setIsComplete(true);
-  };
-
-  const isAnswerCorrect = (questionIndex: number) => {
-    const question = questions[questionIndex];
-    if (question.questionType === 'multiple_choice') {
-      return answers[questionIndex] === question.correctAnswer;
-    } else {
-      return openEndedAnswers[questionIndex] === question.correctAnswerText;
-    }
-  };
-
-  const handleStartReview = () => {
-    setIsReviewMode(true);
-  };
-
-  const handleExitReview = () => {
-    setIsReviewMode(false);
-  };
-
-  const savePracticeSessionToDb = async () => {
-    try {
-      const timeSpent = settings.timedMode ? initialTotalTime - timeLeft : 0;
-      
-      const correctAnswers = questions.filter((question, index) => {
-        if (question.questionType === 'multiple_choice') {
-          return answers[index] === question.correctAnswer;
-        } else {
-          return openEndedAnswers[index] === question.correctAnswerText;
-        }
-      });
-
-      // Record individual question attempts
-      for (let i = 0; i < questions.length; i++) {
-        const question = questions[i];
-        const isCorrect = question.questionType === 'multiple_choice'
-          ? answers[i] === question.correctAnswer
-          : openEndedAnswers[i] === question.correctAnswerText;
-        
-        try {
-          await recordQuestionAttempt(question.id, isCorrect);
-        } catch (error) {
-          console.error(`Failed to record attempt for question ${question.id}:`, error);
-          // Continue with other questions even if one fails
-        }
-      }
-
-      await savePracticeSession({
-        topic: settings.topic === 'Mixed' ? 'Mixed Skills' : settings.topic,
-        difficulty: settings.difficulty,
-        totalQuestions: questions.length,
-        correctAnswers: correctAnswers.length,
-        timeSpentSeconds: timeSpent
-      });
-    } catch (error) {
-      console.error('Failed to save practice session:', error);
-    }
-  };
-
-  const handleRestart = () => {
-    navigate('/practice');
-  };
-
-  // Show review mode if active
-  if (isReviewMode) {
-    return (
-      <ReviewMode
-        questions={questions}
-        answers={answers}
-        openEndedAnswers={openEndedAnswers}
-        onExit={handleExitReview}
-      />
-    );
-  }
-
-  if (questions.length === 0) {
-    return (
-      <div className="min-h-screen bg-white flex items-center justify-center">
-        <div className="text-center">
-          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600 mx-auto mb-4"></div>
-          <p className="text-lg text-gray-600">Generating your practice questions...</p>
-        </div>
-      </div>
-    );
-  }
-
-  if (isComplete) {
-    const percentage = Math.round((score / questions.length) * 100);
-    return (
-      <div className="min-h-screen bg-white py-8">
-        <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8">
-          <div className="bg-white rounded-xl shadow-lg p-8 text-center">
-            <div className="mb-8">
-              <div className={`w-24 h-24 mx-auto rounded-full flex items-center justify-center mb-4 ${
-                percentage >= 80 ? 'bg-green-100 text-green-600' :
-                percentage >= 60 ? 'bg-yellow-100 text-yellow-600' :
-                'bg-red-100 text-red-600'
-              }`}>
-                <span className="text-2xl font-bold">{percentage}%</span>
-              </div>
-              <h1 className="text-3xl font-bold text-gray-900 mb-2">
-                Practice Complete!
-              </h1>
-              <p className="text-lg text-gray-600">
-                You scored {score} out of {questions.length} questions correctly
-              </p>
-            </div>
-
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8">
-              <div className="bg-blue-50 p-4 rounded-lg">
-                <h3 className="font-semibold text-blue-900">Topic</h3>
-                <p className="text-blue-700">{settings.topic}</p>
-              </div>
-              <div className="bg-purple-50 p-4 rounded-lg">
-                <h3 className="font-semibold text-purple-900">Difficulty</h3>
-                <p className="text-purple-700 capitalize">{settings.difficulty}</p>
-              </div>
-              <div className="bg-green-50 p-4 rounded-lg">
-                <h3 className="font-semibold text-green-900">Questions</h3>
-                <p className="text-green-700">{questions.length}</p>
-              </div>
-            </div>
-
-            <div className="flex flex-col sm:flex-row gap-4 justify-center">
-              <button
-                onClick={handleStartReview}
-                className="bg-purple-600 text-white px-6 py-3 rounded-lg font-semibold hover:bg-purple-700 transition-colors flex items-center justify-center"
-              >
-                <Eye className="h-5 w-5 mr-2" />
-                Review Answers
-              </button>
-              <button
-                onClick={handleRestart}
-                className="bg-blue-600 text-white px-6 py-3 rounded-lg font-semibold hover:bg-blue-700 transition-colors flex items-center justify-center"
-              >
-                <RotateCcw className="h-5 w-5 mr-2" />
-                Practice Again
-              </button>
-              <button
-                onClick={() => navigate('/dashboard')}
-                className="bg-gray-600 text-white px-6 py-3 rounded-lg font-semibold hover:bg-gray-700 transition-colors"
-              >
-                View Dashboard
-              </button>
-            </div>
-          </div>
-        </div>
-      </div>
-    );
-  }
-
-  const question = questions[currentQuestion];
-
-  return (
-    <div className="min-h-screen bg-white py-8">
-      <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8">
-        {/* Header */}
-        <div className="bg-white rounded-xl shadow-lg p-6 mb-6">
-          <div className="flex justify-between items-center">
-            <div>
-              <h1 className="text-xl font-semibold text-gray-900">
-                {settings.topic} - {settings.difficulty.charAt(0).toUpperCase() + settings.difficulty.slice(1)}
-              </h1>
-              <p className="text-gray-600">
-                Question {currentQuestion + 1} of {questions.length}
-              </p>
-            </div>
-            
-            {settings.timedMode && (
-              <div className="flex items-center space-x-2 text-lg">
-                <Clock className="h-5 w-5 text-orange-600" />
-                <span className={`font-mono font-semibold ${
-                  timeLeft < 60 ? 'text-red-600' : 'text-gray-700'
-                }`}>
-                  {formatTime(timeLeft)}
-                </span>
-              </div>
-            )}
-          </div>
-          
-          <div className="mt-4 bg-gray-200 rounded-full h-2">
-            <div 
-              className="bg-teal-600 h-2 rounded-full transition-all duration-300"
-              style={{ width: `${((currentQuestion + 1) / questions.length) * 100}%` }}
-            />
-          </div>
-        </div>
-
-        {/* Question */}
-        <div className="bg-white rounded-xl shadow-lg p-6 mb-6">
-          <div className="mb-6">
-            <div className="text-lg font-medium text-gray-900 mb-4 font-sans">
-              <MathRenderer>{question.question}</MathRenderer>
-            </div>
-            
-            {/* Display question image if available */}
-            {question.imageUrl && question.imageUrl.trim() !== '' && question.imageUrl !== 'null' && (
-              <div className="mb-6">
-                <p className="text-sm text-gray-500 mb-2">Question Image:</p>
-                <img
-                  src={question.imageUrl}
-                  alt="Question diagram"
-                  className="max-w-full h-auto max-h-96 rounded-lg border border-gray-200 shadow-sm mx-auto block"
-                  onError={(e) => {
-                    e.currentTarget.style.display = 'none';
-                  }}
-                />
-              </div>
-            )}
-            
-            {question.questionType === 'multiple_choice' ? (
-              <div className="space-y-3">
-                {question.options.map((option, index) => {
-                  const buttonClass = selectedAnswer === index
-                    ? 'border-teal-600 bg-teal-50 text-teal-700'
-                    : 'border-gray-200 hover:border-gray-300';
-                  
-                  return (
-                    <button
-                      key={index}
-                      onClick={() => handleAnswerSelect(index)}
-                      className={`w-full p-4 text-left rounded-lg border-2 transition-all ${buttonClass} cursor-pointer`}
-                    >
-                      <div className="flex items-start space-x-3">
-                        <span className="font-medium">
-                          {String.fromCharCode(65 + index)}.
-                        </span>
-                        <div className="flex-1">
-                          {(option.startsWith('http') || option.startsWith('https://')) && 
-                           (option.includes('.jpg') || option.includes('.png') || option.includes('.gif') || 
-                            option.includes('.svg') || option.includes('.jpeg') || option.includes('.webp') || 
-                            option.includes('supabase') || option.includes('storage')) ? (
-                            <img
-                              src={option}
-                              alt="Option"
-                              className="max-w-full h-auto max-h-48 rounded border border-gray-300 shadow-sm"
-                              onError={(e) => {
-                                e.currentTarget.outerHTML = `<div class="text-red-500 text-sm">Image failed to load</div>`;
-                              }}
-                            />
-                          ) : (
-                            <MathRenderer inline>{option}</MathRenderer>
-                          )}
-                        </div>
-                      </div>
-                    </button>
-                  );
-                })}
-              </div>
-            ) : (
+          {/* Summary Sidebar */}
+          <div className="space-y-6">
+            {/* Session Summary */}
+            <div className="bg-white border border-gray-200 rounded-3xl p-6 animate-scale-in shadow-lg" style={{ animationDelay: '0.3s' }}>
+              <h3 className="text-xl font-bold text-gray-900 mb-4">Session Summary</h3>
               <div className="space-y-4">
-                <label className="block text-sm font-medium text-gray-700 mb-2">
-                  Enter your numeric answer:
-                </label>
-                <input
-                  type="text"
-                  value={openEndedAnswer}
-                  onChange={(e) => handleOpenEndedAnswer(e.target.value)}
-                  className="w-full p-4 border-2 border-gray-200 rounded-lg focus:border-teal-600 focus:outline-none text-center text-lg font-medium"
-                  placeholder="Enter number (e.g., 42, 3.14, -5)"
-                />
+                <div className="flex justify-between items-center">
+                  <span className="text-gray-600">Topic:</span>
+                  <span className="text-gray-900 font-medium">
+                    {selectedTopic || 'Mixed Skills'}
+                  </span>
+                </div>
+                <div className="flex justify-between items-center">
+                  <span className="text-gray-600">Questions:</span>
+                  <span className="text-gray-900 font-medium">{questionCount}</span>
+                </div>
+                <div className="flex justify-between items-center">
+                  <span className="text-gray-600">Difficulty:</span>
+                  <span className="text-red-300 font-medium">Hard</span>
+                </div>
+                <div className="flex justify-between items-center">
+                  <span className="text-gray-600">Mode:</span>
+                  <span className="text-gray-900 font-medium">
+                    {timedMode
+                      ? `Timed (${timeUnit === 'min' ? `${timeValue}m` : `${secondsPerQuestion}s`} / q)`
+                      : 'Untimed'}
+                  </span>
+                </div>
+              </div>
+            </div>
+
+            {/* Start Button */}
+            <button
+              onClick={handleStartPractice}
+              className="w-full group bg-gradient-primary text-white py-6 rounded-2xl font-bold text-lg shadow-lg hover:shadow-xl transition-all duration-300 flex items-center justify-center"
+            >
+              <Zap className="h-6 w-6 mr-3 group-hover:animate-bounce" />
+              Start Practice Session
+              <Play className="h-6 w-6 ml-3 group-hover:translate-x-1 transition-transform" />
+            </button>
+
+            {error && (
+              <div className="bg-red-500/20 border border-red-300/30 rounded-2xl p-4 animate-slide-up">
+                <p className="text-red-800 text-sm">{error}</p>
               </div>
             )}
-          </div>
 
-          {/* Explanation Section */}
-          {((question.questionType === 'multiple_choice' && selectedAnswer !== null) || 
-           (question.questionType === 'open_ended' && openEndedAnswer.trim() !== '')) && (
-            <div className="border-t pt-4">
-              <button
-                onClick={() => setShowExplanation(!showExplanation)}
-                className="text-teal-600 hover:text-teal-700 font-medium mb-3"
-              >
-                {showExplanation ? 'Hide Answer' : 'Check Answer'}
-              </button>
-              
-              {showExplanation && (
-                <div className="space-y-4">
-                  {/* Answer Status */}
-                  <div className={`p-4 rounded-lg ${
-                    isAnswerCorrect(currentQuestion)
-                      ? 'bg-green-50 border border-green-200'
-                      : 'bg-red-50 border border-red-200'
-                  }`}>
-                    <div className="flex items-center mb-2">
-                      {isAnswerCorrect(currentQuestion) ? (
-                        <Check className="h-5 w-5 text-green-600 mr-2" />
-                      ) : (
-                        <X className="h-5 w-5 text-red-600 mr-2" />
-                      )}
-                      <span className="font-semibold">
-                        {isAnswerCorrect(currentQuestion) ? 'Correct!' : 'Incorrect'}
-                      </span>
-                    </div>
-                    
-                    {/* Show correct answer for incorrect responses */}
-                    {!isAnswerCorrect(currentQuestion) && (
-                      <p className="text-sm text-gray-700 mt-2">
-                        <strong>Correct answer:</strong> {question.questionType === 'multiple_choice' 
-                          ? `${String.fromCharCode(65 + question.correctAnswer)} - ${question.options[question.correctAnswer]}`
-                          : question.correctAnswerText}
-                      </p>
-                    )}
-                  </div>
-                  
-                  {/* Explanation */}
-                  {question.explanation && (
-                    <div className="p-4 rounded-lg bg-blue-50 border border-blue-200">
-                      <h4 className="font-semibold text-blue-900 mb-2">Explanation:</h4>
-                      <p className="text-blue-800">
-                        <MathRenderer>{question.explanation}</MathRenderer>
-                      </p>
-                    </div>
-                  )}
-                </div>
-              )}
+            {/* Tips */}
+            <div className="bg-white border border-gray-200 rounded-2xl p-6 shadow-lg">
+              <h4 className="text-gray-900 font-semibold mb-3">💡 Pro Tips</h4>
+              <ul className="text-gray-600 text-sm space-y-2">
+                <li>• Start with untimed practice to build confidence</li>
+                <li>• Focus on one topic at a time for better retention</li>
+                <li>• Review explanations even for correct answers</li>
+                <li>• Practice regularly for consistent improvement</li>
+              </ul>
             </div>
-          )}
-        </div>
-
-        {/* Navigation */}
-        <div className="flex justify-between items-center">
-          <button
-            onClick={handlePrevious}
-            disabled={currentQuestion === 0}
-            className={`flex items-center space-x-2 px-4 py-2 rounded-lg font-medium transition-colors ${
-              currentQuestion === 0
-                ? 'bg-gray-200 text-gray-400 cursor-not-allowed'
-                : 'bg-gray-600 text-white hover:bg-gray-700'
-            }`}
-          >
-            <ArrowLeft className="h-4 w-4" />
-            <span>Previous</span>
-          </button>
-
-          {currentQuestion === questions.length - 1 ? (
-            <button
-              onClick={handleComplete}
-              className="bg-green-600 text-white px-6 py-2 rounded-lg font-medium hover:bg-green-700 transition-colors"
-            >
-              Complete Practice
-            </button>
-          ) : (
-            <button
-              onClick={handleNext}
-              className="flex items-center space-x-2 bg-teal-600 text-white px-4 py-2 rounded-lg font-medium hover:bg-teal-700 transition-colors"
-            >
-              <span>Next</span>
-              <ArrowRight className="h-4 w-4" />
-            </button>
-          )}
+          </div>
         </div>
       </div>
     </div>
   );
 };
 
-export default QuestionGenerator;
+export default Practice;
