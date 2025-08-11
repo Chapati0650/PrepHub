@@ -310,6 +310,9 @@ const QuestionGenerator = () => {
   const [isComplete, setIsComplete] = useState(false);
   const [isReviewMode, setIsReviewMode] = useState(false);
   const [score, setScore] = useState(0);
+  const [totalQuestionsInBank, setTotalQuestionsInBank] = useState<number>(0);
+
+  const { getUserProgress, getTopicMastery, getRecentSessions, getQuestionsCount } = useQuestions();
 
   const settings = location.state || {
     topic: 'Algebra',
@@ -415,12 +418,14 @@ const QuestionGenerator = () => {
 
   const handleStartReview = () => {
     console.log('🔍 Starting review mode...');
+    setIsReviewMode(true);
   };
 
   const handleExitReview = () => {
     console.log('🚪 Exiting review mode...');
     setIsReviewMode(false);
   };
+
   const savePracticeSessionToDb = async () => {
     try {
       const correctAnswers = questions.filter((question, index) => {
@@ -428,7 +433,6 @@ const QuestionGenerator = () => {
           return answers[index] === question.correctAnswer;
         } else {
           return openEndedAnswers[index] === question.correctAnswerText;
-  const [totalQuestionsInBank, setTotalQuestionsInBank] = useState<number>(0);
         }
       });
 
@@ -436,7 +440,7 @@ const QuestionGenerator = () => {
         ? initialTotalTime - timeLeft
         : 0;
 
-  const { getUserProgress, getTopicMastery, getRecentSessions, getQuestionsCount } = useQuestions();
+      await savePracticeSession({
         topic: settings.topic === 'Mixed' ? 'Mixed Skills' : settings.topic,
         difficulty: settings.difficulty,
         totalQuestions: questions.length,
@@ -473,24 +477,22 @@ const QuestionGenerator = () => {
         </div>
       </div>
     );
-        const [progressData, masteryData, sessionsData, totalQuestions] = await Promise.all([
+  }
 
   if (isComplete) {
-          getRecentSessions(5),
-          getQuestionsCount()
+    const percentage = Math.round((score / questions.length) * 100);
+    
     return (
       <div className="min-h-screen bg-white py-8">
         <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="bg-white rounded-xl shadow-lg p-8 text-center">
             <div className="mb-8">
-          sessions: sessionsData,
-          totalQuestions: totalQuestions
+              <div className={`w-24 h-24 rounded-full flex items-center justify-center mx-auto mb-4 ${
                 percentage >= 80 ? 'bg-green-100 text-green-600' :
                 percentage >= 60 ? 'bg-yellow-100 text-yellow-600' :
                 'bg-red-100 text-red-600'
               }`}>
                 <span className="text-2xl font-bold">{percentage}%</span>
-        setTotalQuestionsInBank(totalQuestions);
               </div>
               <h1 className="text-3xl font-bold text-gray-900 mb-2">
                 Practice Complete!
@@ -503,7 +505,7 @@ const QuestionGenerator = () => {
             <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8">
               <div className="bg-blue-50 p-4 rounded-lg">
                 <h3 className="font-semibold text-blue-900">Topic</h3>
-  }, [user, getUserProgress, getTopicMastery, getRecentSessions, getQuestionsCount, refreshUser]);
+                <p className="text-blue-700">{settings.topic}</p>
               </div>
               <div className="bg-purple-50 p-4 rounded-lg">
                 <h3 className="font-semibold text-purple-900">Difficulty</h3>
@@ -526,19 +528,6 @@ const QuestionGenerator = () => {
               <button
                 onClick={handleRestart}
                 className="bg-blue-600 text-white px-6 py-3 rounded-lg font-semibold hover:bg-blue-700 transition-colors flex items-center justify-center"
-  const getQuestionsUsageData = () => {
-    const questionsAnswered = progress?.totalQuestionsAnswered || 0;
-    const maxQuestions = user?.is_premium ? totalQuestionsInBank : 30;
-    const questionsRemaining = Math.max(0, maxQuestions - questionsAnswered);
-    const usagePercentage = maxQuestions > 0 ? Math.round((questionsAnswered / maxQuestions) * 100) : 0;
-    
-    return {
-      questionsAnswered,
-      questionsRemaining,
-      maxQuestions,
-      usagePercentage
-    };
-  };
               >
                 <RotateCcw className="h-5 w-5 mr-2" />
                 Practice Again
@@ -556,7 +545,6 @@ const QuestionGenerator = () => {
     );
   }
 
-  const usageData = getQuestionsUsageData();
   const question = questions[currentQuestion];
 
   return (
@@ -594,120 +582,6 @@ const QuestionGenerator = () => {
           </div>
         </div>
 
-        {/* Questions Usage Section */}
-        <div className="mb-8">
-          <div className="bg-white rounded-2xl p-6 shadow-lg animate-scale-in" style={{ animationDelay: '0.4s' }}>
-            <div className="flex items-center justify-between mb-6">
-              <h2 className="text-xl font-bold text-gray-900 flex items-center">
-                <BarChart3 className="h-6 w-6 mr-3 text-indigo-600" />
-                Question Bank Usage
-              </h2>
-              {!user.is_premium && (
-                <Link 
-                  to="/upgrade" 
-                  className="text-blue-600 hover:text-blue-700 text-sm font-medium flex items-center"
-                >
-                  Unlock All Questions →
-                </Link>
-              )}
-            </div>
-
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-              {/* Questions Used */}
-              <div className="text-center">
-                <div className="w-16 h-16 bg-blue-100 rounded-xl flex items-center justify-center mx-auto mb-3">
-                  <CheckCircle className="h-8 w-8 text-blue-600" />
-                </div>
-                <p className="text-2xl font-bold text-gray-900 mb-1">
-                  {usageData.questionsAnswered}
-                </p>
-                <p className="text-sm text-gray-600">Questions Completed</p>
-              </div>
-
-              {/* Questions Remaining */}
-              <div className="text-center">
-                <div className="w-16 h-16 bg-green-100 rounded-xl flex items-center justify-center mx-auto mb-3">
-                  <Target className="h-8 w-8 text-green-600" />
-                </div>
-                <p className="text-2xl font-bold text-gray-900 mb-1">
-                  {usageData.questionsRemaining}
-                </p>
-                <p className="text-sm text-gray-600">Questions Remaining</p>
-              </div>
-
-              {/* Total Available */}
-              <div className="text-center">
-                <div className="w-16 h-16 bg-purple-100 rounded-xl flex items-center justify-center mx-auto mb-3">
-                  <BookOpen className="h-8 w-8 text-purple-600" />
-                </div>
-                <p className="text-2xl font-bold text-gray-900 mb-1">
-                  {usageData.maxQuestions}
-                </p>
-                <p className="text-sm text-gray-600">
-                  {user.is_premium ? 'Total Available' : 'Free Limit'}
-                </p>
-              </div>
-            </div>
-
-            {/* Progress Bar */}
-            <div className="mt-6">
-              <div className="flex items-center justify-between mb-2">
-                <span className="text-sm font-medium text-gray-700">Usage Progress</span>
-                <span className="text-sm font-bold text-gray-900">{usageData.usagePercentage}%</span>
-              </div>
-              <div className="w-full bg-gray-200 rounded-full h-3">
-                <div 
-                  className={`h-3 rounded-full transition-all duration-1000 ${
-                    usageData.usagePercentage >= 90 ? 'bg-red-500' :
-                    usageData.usagePercentage >= 70 ? 'bg-yellow-500' :
-                    'bg-gradient-primary'
-                  }`}
-                  style={{ width: `${Math.min(usageData.usagePercentage, 100)}%` }}
-                />
-              </div>
-              <div className="flex justify-between text-xs text-gray-500 mt-1">
-                <span>0</span>
-                <span>{usageData.maxQuestions}</span>
-              </div>
-            </div>
-
-            {/* Usage Status Message */}
-            <div className="mt-4">
-              {usageData.questionsRemaining === 0 ? (
-                <div className="bg-red-50 border border-red-200 rounded-xl p-4">
-                  <p className="text-red-800 text-sm">
-                    {user.is_premium 
-                      ? "You've completed all available questions! Check back for new content."
-                      : "You've reached your free question limit. Upgrade to Premium to access all 300+ questions!"
-                    }
-                  </p>
-                  {!user.is_premium && (
-                    <Link
-                      to="/upgrade"
-                      className="mt-2 inline-flex items-center bg-red-600 text-white px-4 py-2 rounded-lg text-sm hover:bg-red-700 transition-colors"
-                    >
-                      <Star className="h-4 w-4 mr-2" />
-                      Upgrade Now
-                    </Link>
-                  )}
-                </div>
-              ) : usageData.usagePercentage >= 80 ? (
-                <div className="bg-yellow-50 border border-yellow-200 rounded-xl p-4">
-                  <p className="text-yellow-800 text-sm">
-                    You're getting close to your limit! {usageData.questionsRemaining} questions remaining.
-                    {!user.is_premium && " Consider upgrading to Premium for unlimited access."}
-                  </p>
-                </div>
-              ) : (
-                <div className="bg-blue-50 border border-blue-200 rounded-xl p-4">
-                  <p className="text-blue-800 text-sm">
-                    Great progress! You have {usageData.questionsRemaining} questions remaining to practice.
-                  </p>
-                </div>
-              )}
-            </div>
-          </div>
-        </div>
         {/* Question */}
         <div className="bg-white rounded-xl shadow-lg p-6 mb-6">
           <div className="mb-6">
@@ -782,7 +656,7 @@ const QuestionGenerator = () => {
                   placeholder="Enter number (e.g., 42, 3.14, -5)"
                 />
               </div>
-            <div className="bg-white rounded-2xl p-6 shadow-lg animate-scale-in" style={{ animationDelay: '0.5s' }}>
+            )}
           </div>
 
           {/* Explanation Section */}
@@ -841,11 +715,11 @@ const QuestionGenerator = () => {
         </div>
 
         {/* Navigation */}
-            <div className="bg-white rounded-2xl p-6 shadow-lg animate-scale-in" style={{ animationDelay: '0.6s' }}>
+        <div className="flex justify-between items-center">
           <button
             onClick={handlePrevious}
             disabled={currentQuestion === 0}
-            style={{ animationDelay: '0.8s' }}
+            className={`flex items-center space-x-2 px-4 py-2 rounded-lg font-medium transition-colors ${
               currentQuestion === 0
                 ? 'bg-gray-200 text-gray-400 cursor-not-allowed'
                 : 'bg-gray-600 text-white hover:bg-gray-700'
@@ -860,13 +734,13 @@ const QuestionGenerator = () => {
               onClick={handleComplete}
               className="bg-green-600 text-white px-6 py-2 rounded-lg font-medium hover:bg-green-700 transition-colors"
             >
-              style={{ animationDelay: '0.9s' }}
+              Complete Practice
             </button>
           ) : (
             <button
               onClick={handleNext}
               className="flex items-center space-x-2 bg-teal-600 text-white px-4 py-2 rounded-lg font-medium hover:bg-teal-700 transition-colors"
-            style={{ animationDelay: '0.7s' }}
+            >
               <span>Next</span>
               <ArrowRight className="h-4 w-4" />
             </button>
