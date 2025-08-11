@@ -297,7 +297,6 @@ const ReviewMode = ({
 const QuestionGenerator = () => {
   const location = useLocation();
   const navigate = useNavigate();
-  const { user, loading: authLoading } = useAuth();
   const { generateQuestions, savePracticeSession } = useQuestions();
   const [questions, setQuestions] = useState<QuestionData[]>([]);
   const [currentQuestion, setCurrentQuestion] = useState(0);
@@ -321,15 +320,6 @@ const QuestionGenerator = () => {
   };
 
   useEffect(() => {
-    // Don't load questions until auth is resolved
-    if (authLoading) return;
-    
-    // Redirect to login if not authenticated
-    if (!user) {
-      navigate('/login');
-      return;
-    }
-
     const loadQuestions = async () => {
       const generatedQuestions = await generateQuestions(settings);
       setQuestions(generatedQuestions);
@@ -344,31 +334,7 @@ const QuestionGenerator = () => {
     };
 
     loadQuestions();
-  }, [settings, authLoading, user, navigate]);
-
-  // Show loading while auth is being resolved
-  if (authLoading) {
-    return (
-      <div className="min-h-screen bg-white flex items-center justify-center">
-        <div className="text-center">
-          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600 mx-auto mb-4"></div>
-          <p className="text-lg text-gray-600">Loading...</p>
-        </div>
-      </div>
-    );
-  }
-
-  // Redirect handled in useEffect, but show loading just in case
-  if (!user) {
-    return (
-      <div className="min-h-screen bg-white flex items-center justify-center">
-        <div className="text-center">
-          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600 mx-auto mb-4"></div>
-          <p className="text-lg text-gray-600">Redirecting to login...</p>
-        </div>
-      </div>
-    );
-  }
+  }, [settings]);
 
   useEffect(() => {
     if (settings.timedMode && timeLeft > 0 && !isComplete) {
