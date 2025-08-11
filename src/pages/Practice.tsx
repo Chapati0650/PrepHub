@@ -7,6 +7,8 @@ interface QuestionData {
   id: string;
   questionType: 'multiple_choice' | 'open_ended';
   options: string[];
+}
+
 import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { 
