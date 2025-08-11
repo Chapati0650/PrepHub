@@ -415,12 +415,14 @@ const QuestionGenerator = () => {
 
   const handleStartReview = () => {
     console.log('🔍 Starting review mode...');
+    setIsReviewMode(true);
   };
 
   const handleExitReview = () => {
     console.log('🚪 Exiting review mode...');
     setIsReviewMode(false);
   };
+  
   const savePracticeSessionToDb = async () => {
     try {
       const correctAnswers = questions.filter((question, index) => {
@@ -428,10 +430,7 @@ const QuestionGenerator = () => {
           return answers[index] === question.correctAnswer;
         } else {
           return openEndedAnswers[index] === question.correctAnswerText;
-                      {user?.is_premium 
-                        ? Math.max(0, 300 - (userProgress?.totalQuestionsAnswered || 0))
-                        : Math.max(0, 30 - (userProgress?.totalQuestionsAnswered || 0))
-                      }
+        }
       });
 
       const timeSpent = settings.timedMode 
@@ -692,9 +691,7 @@ const QuestionGenerator = () => {
                         <strong>Correct answer:</strong> {question.questionType === 'multiple_choice' 
                           ? `${String.fromCharCode(65 + question.correctAnswer)} - ${question.options[question.correctAnswer]}`
                           : question.correctAnswerText}
-                      style={{ 
-                        width: `${Math.min(100, ((userProgress?.totalQuestionsAnswered || 0) / (user?.is_premium ? 300 : 30)) * 100)}%` 
-                      }}
+                      </p>
                     )}
                   </div>
                   
