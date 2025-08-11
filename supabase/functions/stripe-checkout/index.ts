@@ -5,70 +5,41 @@ import Stripe from 'npm:stripe@14.21.0'
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
   'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
-  'Access-Control-Allow-Methods': 'POST, OPTIONS',
 }
 
 serve(async (req) => {
-  // Handle preflight requests
   if (req.method === 'OPTIONS') {
     return new Response('ok', { headers: corsHeaders })
   }
 
-  console.log('🛒 Checkout function called')
-  console.log('📍 Request method:', req.method)
-
   try {
-    const { priceId, userId } = await req.json()
-    console.log('💰 Price ID:', priceId)
-    console.log('👤 User ID:', userId)
-
-    if (!priceId || !userId) {
-      throw new Error('Price ID and User ID are required')
-    }
-
-    // Initialize Stripe
-    const stripe = new Stripe(Deno.env.get('STRIPE_SECRET_KEY') || '', {
+    const stripe = new Stripe(Deno.env.get('Stripe Key') || '', {
       apiVersion: '2023-10-16',
     })
-    console.log('💳 Stripe client created')
 
-    // Get user email from Supabase
-    const supabase = createClient(
-      Deno.env.get('SUPABASE_URL') ?? '',
-      Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') ?? ''
-    )
+    const { userId } = await req.json()
 
-    const { data: user, error: userError } = await supabase
-      .from('users')
-      .select('email')
-      .eq('id', userId)
-      .single()
-
-    if (userError || !user) {
-      console.error('❌ Error fetching user:', userError)
-      throw new Error('User not found')
+    if (!userId) {
+      throw new Error('User ID is required')
     }
-
-    console.log('👤 User email:', user.email)
 
     // Create checkout session
     const session = await stripe.checkout.sessions.create({
       payment_method_types: ['card'],
       line_items: [
         {
-          price: priceId,
+          price: 'price_1RoG55HSj8WvROSvCj4fBTbi',
           quantity: 1,
         },
       ],
-      mode: 'subscription',
-      success_url: `${req.headers.get('origin')}/payment-success?session_id={CHECKOUT_SESSION_ID}`,
+      mode: 'subscription', // Recurring subscription
+      success_url: `${req.headers.get('origin')}/dashboard?payment=success`,
       cancel_url: `${req.headers.get('origin')}/upgrade`,
-      client_reference_id: userId,
-      customer_email: user.email,
+      client_reference_id: userId, // This links the payment to your user
+      metadata: {
+        userId: userId
+      }
     })
-
-    console.log('✅ Checkout session created:', session.id)
-    console.log('🔗 Checkout URL:', session.url)
 
     return new Response(
       JSON.stringify({ url: session.url }),
@@ -78,7 +49,7 @@ serve(async (req) => {
       },
     )
   } catch (error) {
-    console.error('❌ Checkout error:', error)
+    console.error('Stripe checkout error:', error)
     return new Response(
       JSON.stringify({ error: error.message }),
       {

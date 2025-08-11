@@ -1,750 +1,641 @@
-import React, { useState, useEffect } from 'react';
-import { useLocation, useNavigate } from 'react-router-dom';
-import { Clock, Check, X, ArrowRight, ArrowLeft, RotateCcw, Eye, Home } from 'lucide-react';
-import MathRenderer from '../components/MathRenderer';
-import { useQuestions } from '../contexts/QuestionContext';
+import React, { createContext, useContext, ReactNode } from 'react';
+import { supabase } from '../lib/supabase';
+import { useAuth } from './AuthContext';
 
-interface QuestionData {
+interface PracticeSession { // Data structure for saving practice sessions
+  topic: string;
+  difficulty: string;
+  totalQuestions: number;
+  correctAnswers: number;
+  timeSpentSeconds: number;
+}
+
+interface UserProgress { // Data structure for user's overall progress
+  totalQuestionsAnswered: number;
+  totalCorrectAnswers: number;
+  totalTimeSpentSeconds: number;
+  currentStreak: number;
+  lastPracticeDate: string | null;
+}
+
+interface TopicMastery { // Data structure for topic mastery
+  topic: string;
+  masteryPercentage: number;
+}
+
+interface RecentSession { // Data structure for recent practice sessions
+  id: string;
+  // Renamed from total_questions to total, and correct_answers to score for clarity in UI
+  topic: string;
+  difficulty: string;
+  score: number;
+  total: number;
+  date: string;
+  timeSpent: number;
+}
+
+interface QuestionData { // Data structure for a single question retrieved from DB
   id: string;
   question: string;
   questionType: 'multiple_choice' | 'open_ended';
   options: string[];
   correctAnswer: number;
   correctAnswerText: string;
-  explanation: string;
+  explanation: string; // Optional explanation for the answer
   topic: string;
   difficulty: string;
+  imageUrl?: string;
+  accessLevel?: 'free' | 'premium'; // New: access level for the question
 }
 
-// Separate Review Component
-const ReviewMode = ({ 
-  questions, 
-  answers, 
-  openEndedAnswers, 
-  onExit 
-}: {
-  questions: QuestionData[];
-  answers: (number | null)[];
-  openEndedAnswers: string[];
-  onExit: () => void;
-}) => {
-  const [currentQuestion, setCurrentQuestion] = useState(0);
-  const navigate = useNavigate();
+interface UploadQuestionData { // Data structure for uploading a new question
+  questionNumber?: number | null;
+  question: string;
+  questionType: 'multiple_choice' | 'open_ended';
+  optionA: string | null;
+  optionB: string | null;
+  optionC: string | null;
+  optionD: string | null;
+  correctAnswer: string;
+  topic: string;
+  difficulty: string;
+  imageUrl?: string | null;
+  accessLevel: 'free' | 'premium';
+}
 
-  const isAnswerCorrect = (questionIndex: number) => {
-    const question = questions[questionIndex];
-    if (question.questionType === 'multiple_choice') {
-      return answers[questionIndex] === question.correctAnswer;
-    } else {
-      return openEndedAnswers[questionIndex] === question.correctAnswerText;
-    }
-  };
+interface QuestionSettings {
+  topic: string;
+  difficulty: string;
+  questionCount: number;
+  timedMode: boolean;
+}
 
-  const handleNext = () => {
-    if (currentQuestion < questions.length - 1) {
-      setCurrentQuestion(currentQuestion + 1);
-    }
-  };
+interface QuestionContextType {
+  generateQuestions: (settings: QuestionSettings) => Promise<QuestionData[]>; // Generates questions based on settings
+  uploadSingleQuestion: (question: UploadQuestionData) => Promise<void>; // Uploads a single question to DB
+  getQuestionsCount: () => Promise<number>;
+  getRandomHardQuestions: (count: number) => Promise<QuestionData[]>;
+  getAllQuestions: () => Promise<any[]>;
+  deleteQuestion: (id: string) => Promise<void>;
+  isAdmin: () => boolean;
+  savePracticeSession: (session: PracticeSession) => Promise<void>;
+  getUserProgress: () => Promise<UserProgress | null>;
+  getTopicMastery: () => Promise<TopicMastery[]>;
+  getRecentSessions: (limit?: number) => Promise<RecentSession[]>;
+}
 
-  const handlePrevious = () => {
-    if (currentQuestion > 0) {
-      setCurrentQuestion(currentQuestion - 1);
-    }
-  };
+const QuestionContext = createContext<QuestionContextType | undefined>(undefined);
 
-  const question = questions[currentQuestion];
-
-  return (
-    <div className="min-h-screen bg-white py-8">
-      <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8">
-        {/* Header */}
-        <div className="bg-purple-50 border-2 border-purple-200 rounded-xl shadow-lg p-6 mb-6">
-          <div className="flex justify-between items-center">
-            <div>
-              <h1 className="text-xl font-semibold text-purple-900">
-                Review Mode: Question {currentQuestion + 1} of {questions.length}
-              </h1>
-              <p className="text-purple-700">
-                <span className={`ml-4 px-2 py-1 rounded-full text-xs font-medium ${
-                  isAnswerCorrect(currentQuestion) 
-                    ? 'bg-green-100 text-green-800' 
-                    : 'bg-red-100 text-red-800'
-                }`}>
-                  {isAnswerCorrect(currentQuestion) ? 'Correct' : 'Incorrect'}
-                </span>
-              </p>
-            </div>
-            <button
-              onClick={onExit}
-              className="bg-gray-600 text-white px-4 py-2 rounded-lg font-medium hover:bg-gray-700 transition-colors"
-            >
-              Exit Review
-            </button>
-          </div>
-          
-          <div className="mt-4 bg-gray-200 rounded-full h-2">
-            <div 
-              className="bg-purple-600 h-2 rounded-full transition-all duration-300"
-              style={{ width: `${((currentQuestion + 1) / questions.length) * 100}%` }}
-            />
-          </div>
-        </div>
-
-        {/* Question */}
-        <div className="bg-white rounded-xl shadow-lg p-6 mb-6">
-          <div className="mb-6">
-            <div className="text-lg font-medium text-gray-900 mb-4 font-sans">
-              <MathRenderer>{question.question}</MathRenderer>
-            </div>
-            
-            {/* Display question image if available */}
-            {question.imageUrl && question.imageUrl.trim() !== '' && question.imageUrl !== 'null' && (
-              <div className="mb-6">
-                <p className="text-sm text-gray-500 mb-2">Question Image:</p>
-                <img
-                  src={question.imageUrl}
-                  alt="Question diagram"
-                  className="max-w-full h-auto max-h-96 rounded-lg border border-gray-200 shadow-sm mx-auto block"
-                  onError={(e) => {
-                    e.currentTarget.style.display = 'none';
-                  }}
-                />
-              </div>
-            )}
-            
-            {question.questionType === 'multiple_choice' ? (
-              <div className="space-y-3">
-                {question.options.map((option, index) => {
-                  const isUserAnswer = answers[currentQuestion] === index;
-                  const isCorrectAnswer = index === question.correctAnswer;
-                  const isUserCorrect = answers[currentQuestion] === question.correctAnswer;
-                  
-                  let buttonClass = '';
-                  let iconElement = null;
-                  
-                  if (isCorrectAnswer) {
-                    buttonClass = 'border-green-500 bg-green-50 text-green-700';
-                    iconElement = <Check className="h-5 w-5 text-green-600" />;
-                  } else if (isUserAnswer && !isUserCorrect) {
-                    buttonClass = 'border-red-500 bg-red-50 text-red-700';
-                    iconElement = <X className="h-5 w-5 text-red-600" />;
-                  } else {
-                    buttonClass = 'border-gray-200 bg-gray-50 text-gray-600';
-                  }
-                  
-                  return (
-                    <div
-                      key={index}
-                      className={`w-full p-4 text-left rounded-lg border-2 transition-all ${buttonClass} cursor-default`}
-                    >
-                      <div className="flex items-start space-x-3">
-                        <div className="flex items-center space-x-2">
-                          <span className="font-medium">
-                            {String.fromCharCode(65 + index)}.
-                          </span>
-                          {iconElement}
-                        </div>
-                        <div className="flex-1">
-                          {(option.startsWith('http') || option.startsWith('https://')) && 
-                           (option.includes('.jpg') || option.includes('.png') || option.includes('.gif') || 
-                            option.includes('.svg') || option.includes('.jpeg') || option.includes('.webp') || 
-                            option.includes('supabase') || option.includes('storage')) ? (
-                            <img
-                              src={option}
-                              alt="Option"
-                              className="max-w-full h-auto max-h-48 rounded border border-gray-300 shadow-sm"
-                              onError={(e) => {
-                                e.currentTarget.outerHTML = `<div class="text-red-500 text-sm">Image failed to load</div>`;
-                              }}
-                            />
-                          ) : (
-                            <MathRenderer inline>{option}</MathRenderer>
-                          )}
-                        </div>
-                      </div>
-                    </div>
-                  );
-                })}
-              </div>
-            ) : (
-              <div className="space-y-4">
-                <div className={`p-4 rounded-lg border-2 ${
-                  openEndedAnswers[currentQuestion] === question.correctAnswerText
-                    ? 'border-green-500 bg-green-50'
-                    : 'border-red-500 bg-red-50'
-                }`}>
-                  <div className="flex items-center mb-2">
-                    {openEndedAnswers[currentQuestion] === question.correctAnswerText ? (
-                      <Check className="h-5 w-5 text-green-600 mr-2" />
-                    ) : (
-                      <X className="h-5 w-5 text-red-600 mr-2" />
-                    )}
-                    <span className="font-semibold">Your Answer:</span>
-                  </div>
-                  <p className="text-lg font-mono">
-                    {openEndedAnswers[currentQuestion] || 'No answer provided'}
-                  </p>
-                </div>
-                
-                {openEndedAnswers[currentQuestion] !== question.correctAnswerText && (
-                  <div className="p-4 rounded-lg border-2 border-green-500 bg-green-50">
-                    <div className="flex items-center mb-2">
-                      <Check className="h-5 w-5 text-green-600 mr-2" />
-                      <span className="font-semibold text-green-800">Correct Answer:</span>
-                    </div>
-                    <p className="text-lg font-mono text-green-700">
-                      {question.correctAnswerText}
-                    </p>
-                  </div>
-                )}
-              </div>
-            )}
-          </div>
-
-          {/* Explanation Section - Always shown in review mode */}
-          <div className="border-t pt-4">
-            <div className="space-y-4">
-              {/* Answer Status */}
-              <div className={`p-4 rounded-lg ${
-                isAnswerCorrect(currentQuestion)
-                  ? 'bg-green-50 border border-green-200'
-                  : 'bg-red-50 border border-red-200'
-              }`}>
-                <div className="flex items-center mb-2">
-                  {isAnswerCorrect(currentQuestion) ? (
-                    <Check className="h-5 w-5 text-green-600 mr-2" />
-                  ) : (
-                    <X className="h-5 w-5 text-red-600 mr-2" />
-                  )}
-                  <span className="font-semibold">
-                    {isAnswerCorrect(currentQuestion) ? 'Correct!' : 'Incorrect'}
-                  </span>
-                </div>
-                
-                {/* Show correct answer for incorrect responses */}
-                {!isAnswerCorrect(currentQuestion) && (
-                  <p className="text-sm text-gray-700 mt-2">
-                    <strong>Correct answer:</strong> {question.questionType === 'multiple_choice' 
-                      ? `${String.fromCharCode(65 + question.correctAnswer)} - ${question.options[question.correctAnswer]}`
-                      : question.correctAnswerText}
-                  </p>
-                )}
-              </div>
-              
-              {/* Explanation */}
-              {question.explanation && (
-                <div className="p-4 rounded-lg bg-blue-50 border border-blue-200">
-                  <h4 className="font-semibold text-blue-900 mb-2">Explanation:</h4>
-                  <p className="text-blue-800">
-                    <MathRenderer>{question.explanation}</MathRenderer>
-                  </p>
-                </div>
-              )}
-            </div>
-          </div>
-        </div>
-
-        {/* Navigation */}
-        <div className="flex justify-between items-center">
-          <button
-            onClick={handlePrevious}
-            disabled={currentQuestion === 0}
-            className={`flex items-center space-x-2 px-4 py-2 rounded-lg font-medium transition-colors ${
-              currentQuestion === 0
-                ? 'bg-gray-200 text-gray-400 cursor-not-allowed'
-                : 'bg-purple-600 text-white hover:bg-purple-700'
-            }`}
-          >
-            <ArrowLeft className="h-4 w-4" />
-            <span>Previous</span>
-          </button>
-
-          <div className="flex items-center space-x-4">
-            <button
-              onClick={() => navigate('/dashboard')}
-              className="flex items-center space-x-2 bg-gray-600 text-white px-4 py-2 rounded-lg font-medium hover:bg-gray-700 transition-colors"
-            >
-              <Home className="h-4 w-4" />
-              <span>Dashboard</span>
-            </button>
-            <button
-              onClick={() => navigate('/practice')}
-              className="flex items-center space-x-2 bg-blue-600 text-white px-4 py-2 rounded-lg font-medium hover:bg-blue-700 transition-colors"
-            >
-              <RotateCcw className="h-4 w-4" />
-              <span>Practice Again</span>
-            </button>
-          </div>
-
-          <button
-            onClick={handleNext}
-            disabled={currentQuestion === questions.length - 1}
-            className={`flex items-center space-x-2 px-4 py-2 rounded-lg font-medium transition-colors ${
-              currentQuestion === questions.length - 1
-                ? 'bg-gray-200 text-gray-400 cursor-not-allowed'
-                : 'bg-purple-600 text-white hover:bg-purple-700'
-            }`}
-          >
-            <span>Next</span>
-            <ArrowRight className="h-4 w-4" />
-          </button>
-        </div>
-      </div>
-    </div>
-  );
+export const useQuestions = () => {
+  const context = useContext(QuestionContext);
+  if (context === undefined) {
+    throw new Error('useQuestions must be used within a QuestionProvider');
+  }
+  return context;
 };
 
-const QuestionGenerator = () => {
-  const location = useLocation();
-  const navigate = useNavigate();
-  const { generateQuestions, savePracticeSession } = useQuestions();
-  const [questions, setQuestions] = useState<QuestionData[]>([]);
-  const [currentQuestion, setCurrentQuestion] = useState(0);
-  const [selectedAnswer, setSelectedAnswer] = useState<number | null>(null);
-  const [openEndedAnswer, setOpenEndedAnswer] = useState('');
-  const [showExplanation, setShowExplanation] = useState(false);
-  const [answers, setAnswers] = useState<(number | null)[]>([]);
-  const [openEndedAnswers, setOpenEndedAnswers] = useState<string[]>([]);
-  const [timeLeft, setTimeLeft] = useState(0);
-  const [initialTotalTime, setInitialTotalTime] = useState(0);
-  const [isComplete, setIsComplete] = useState(false);
-  const [isReviewMode, setIsReviewMode] = useState(false);
-  const [score, setScore] = useState(0);
+interface QuestionProviderProps {
+  children: ReactNode;
+}
 
-  const settings = location.state || {
-    topic: 'Algebra',
-    difficulty: 'medium',
-    questionCount: 10,
-    timedMode: false,
-    customTimePerQuestion: 2
+export const QuestionProvider: React.FC<QuestionProviderProps> = ({ children }) => {
+  const { user } = useAuth();
+
+  const generateQuestions = async (settings: QuestionSettings): Promise<QuestionData[]> => {
+    const isPremiumUser = user?.is_premium;
+    // Determine which access levels are allowed based on user's premium status
+    const allowedAccessLevels: ('free' | 'premium')[] = isPremiumUser ? ['free', 'premium'] : ['free'];
+    // Determine the maximum number of questions a user can request
+    const maxQuestions = isPremiumUser ? 300 : 30;
+
+    // Adjust the requested question count based on the user's access level
+    const actualQuestionCount = Math.min(settings.questionCount, maxQuestions);
+
+    try {
+      if (settings.topic && settings.topic !== 'Mixed') {
+        return await getRandomQuestionsBySkill(settings.topic, actualQuestionCount, allowedAccessLevels);
+      } else {
+        return await getRandomMixedQuestions(actualQuestionCount, allowedAccessLevels);
+      }
+    } catch (error) {
+      console.error('Database error, falling back to generated questions:', error);
+      throw new Error('Unable to load questions from database');
+    }
   };
 
-  useEffect(() => {
-    const loadQuestions = async () => {
-      const generatedQuestions = await generateQuestions(settings);
-      setQuestions(generatedQuestions);
-      setAnswers(new Array(generatedQuestions.length).fill(null));
-      setOpenEndedAnswers(new Array(generatedQuestions.length).fill(''));
+  const getRandomQuestionsBySkill = async (skill: string, count: number, allowedAccessLevels: ('free' | 'premium')[]): Promise<QuestionData[]> => {
+    try {
+      console.log('=== RETRIEVAL DEBUG ===');
+      console.log('Fetching questions for skill:', skill, 'count:', count);
       
-      if (settings.timedMode) {
-        const totalTime = generatedQuestions.length * (settings.customTimePerQuestion * 60);
-        setTimeLeft(totalTime);
-        setInitialTotalTime(totalTime);
+      // Try RPC function first
+      let data, error;
+      
+      try {
+        const rpcResult = await supabase.rpc('get_random_questions_by_skill', {
+          skill_name: skill,
+          question_count: Math.min(count, 10), // Limit RPC to 10 for performance/safety
+          access_levels: allowedAccessLevels // Pass access levels to RPC
+        });
+        data = rpcResult.data;
+        error = rpcResult.error;
+      } catch (rpcError) {
+        console.log('RPC function not available, using direct query');
+        error = rpcError;
       }
+
+      if (error) {
+        console.error('Error getting random questions by skill:', error);
+        // Fallback to direct query if function doesn't exist
+        console.log('RPC function failed, trying direct query...');
+        const { data: fallbackData, error: fallbackError } = await supabase
+          .from('questions')
+          .select(`
+            id,
+            question_number,
+            question,
+            option_a,
+            option_b,
+            option_c,
+            option_d,
+            correct_answer,
+            explanation,
+            topic,
+            difficulty,
+            question_type,
+            image_url,
+            created_at,
+            created_by,
+            is_active
+          `)
+          .eq('topic', skill) // Filter by topic
+          .in('access_level', allowedAccessLevels) // Filter by access_level
+          .eq('is_active', true)
+          .limit(Math.min(count, 10));
+          
+        if (fallbackError) {
+          console.error('Fallback query also failed:', fallbackError);
+          throw fallbackError;
+        }
+        
+        console.log('Direct query successful, data:', fallbackData);
+        return mapDatabaseToQuestionData(fallbackData);
+      }
+
+      console.log('RPC function successful, data:', data);
+      return mapDatabaseToQuestionData(data);
+    } catch (error) {
+      console.error('Error fetching random questions by skill:', error);
+      throw new Error(`Unable to load questions for skill: ${skill}`);
+    }
+  };
+
+  const mapDatabaseToQuestionData = (data: any[]): QuestionData[] => {
+    if (!data || data.length === 0) {
+      throw new Error('No questions available');
+    }
+
+    console.log('=== MAPPING DEBUG ===');
+    console.log('Raw database data:', data);
+    
+    return data.map((q: any) => {
+      console.log('Processing question:', {
+        id: q.id,
+        question_type: q.question_type,
+        raw_options: {
+          A: q.option_a,
+          B: q.option_b,
+          C: q.option_c,
+          D: q.option_d
+        },
+        image_url: q.image_url
+      });
+      
+      // For multiple choice, use text options
+      const options = q.question_type === 'multiple_choice' ? [
+        q.option_a,
+        q.option_b, 
+        q.option_c,
+        q.option_d
+      ].filter(opt => opt !== null && opt !== undefined && opt.toString().trim() !== '') : [];
+        
+      const mapped = {
+        id: q.id,
+        question: q.question,
+        questionType: q.question_type as 'multiple_choice' | 'open_ended',
+        options: options,
+        correctAnswer: q.question_type === 'multiple_choice' 
+          ? ['A', 'B', 'C', 'D'].indexOf(q.correct_answer)
+          : -1,
+        correctAnswerText: q.correct_answer,
+        explanation: q.explanation || '',
+        topic: q.topic,
+        difficulty: q.difficulty,
+        imageUrl: q.image_url || undefined
+      };
+      
+      console.log('Mapped question result:', {
+        id: mapped.id,
+        questionType: mapped.questionType,
+        optionsCount: mapped.options.length,
+        options: mapped.options,
+        hasImage: !!mapped.imageUrl,
+        imageUrl: mapped.imageUrl
+      });
+      
+      return mapped;
+    });
+  };
+
+  const getRandomMixedQuestions = async (count: number, allowedAccessLevels: ('free' | 'premium')[]): Promise<QuestionData[]> => {
+    try {
+      console.log('=== MIXED RETRIEVAL DEBUG ===');
+      console.log('Fetching mixed questions, count:', count);
+      
+      // Try RPC function first
+      let data, error;
+      
+      try {
+        const rpcResult = await supabase.rpc('get_random_questions_mixed', {
+          question_count: Math.min(count, 10)
+        }); // RPC function might need to be updated to accept access_levels
+        // For now, assuming RPC fetches all and we filter later, or RPC is updated on Supabase side
+        data = rpcResult.data;
+        error = rpcResult.error;
+      } catch (rpcError) {
+        console.log('RPC function not available, using direct query');
+        error = rpcError;
+      }
+
+      if (error) {
+        console.error('Error getting random mixed questions:', error);
+        // Fallback to direct query if function doesn't exist
+        console.log('RPC function failed, trying direct query...');
+        const { data: fallbackData, error: fallbackError } = await supabase
+          .from('questions')
+          .select(`
+            id,
+            question_number,
+            question,
+            option_a,
+            option_b,
+            option_c,
+            option_d,
+            correct_answer,
+            explanation,
+            topic,
+            difficulty,
+            question_type,
+            image_url,
+            created_at,
+            created_by,
+            is_active
+          `)
+          .eq('is_active', true) // Only active questions
+          .in('access_level', allowedAccessLevels) // Filter by access_level
+          .limit(Math.min(count, 10));
+          
+        if (fallbackError) {
+          console.error('Fallback query also failed:', fallbackError);
+          throw fallbackError;
+        }
+        
+        console.log('Direct query successful, data:', fallbackData);
+        return mapDatabaseToQuestionData(fallbackData);
+      }
+
+
+      console.log('RPC function successful, data:', data);
+      return mapDatabaseToQuestionData(data);
+    } catch (error) {
+      console.error('Error fetching random mixed questions:', error);
+      throw new Error('Unable to load questions from database');
+    }
+  };
+
+  const uploadSingleQuestion = async (question: UploadQuestionData): Promise<void> => {
+    // Check if user is admin
+    if (!isAdmin()) {
+      throw new Error('Unauthorized: Only admin can upload questions');
+    }
+
+    console.log('=== UPLOAD DEBUG ===');
+    console.log('Raw question data received:', question);
+    console.log('Question type:', question.questionType);
+    console.log('Options:', {
+      A: question.optionA,
+      B: question.optionB, 
+      C: question.optionC,
+      D: question.optionD
+    });
+    console.log('Image URL:', question.imageUrl);
+
+    // Format question for database
+    const formattedQuestion = {
+      question_number: question.questionNumber || null,
+      question: question.question,
+      question_type: question.questionType,
+      option_a: question.questionType === 'multiple_choice' ? question.optionA : null,
+      option_b: question.questionType === 'multiple_choice' ? question.optionB : null,
+      option_c: question.questionType === 'multiple_choice' ? question.optionC : null,
+      option_d: question.questionType === 'multiple_choice' ? question.optionD : null,
+      correct_answer: question.correctAnswer,
+      explanation: null, // No explanations for now
+      topic: question.topic,
+      difficulty: 'hard', // All questions are hard
+      created_by: user?.id,
+      is_active: true,
+      image_url: question.imageUrl || null, // Ensure image_url is passed
+      access_level: question.accessLevel // New: Add access_level
     };
 
-    loadQuestions();
-  }, [settings]);
+    console.log('Formatted for database:', formattedQuestion);
 
-  useEffect(() => {
-    if (settings.timedMode && timeLeft > 0 && !isComplete) {
-      const timer = setInterval(() => {
-        setTimeLeft(prev => {
-          if (prev <= 1) {
-            setIsComplete(true);
-            return 0;
-          }
-          return prev - 1;
-        });
-      }, 1000);
+    // Insert into database
+    const { error } = await supabase
+      .from('questions')
+      .insert([formattedQuestion]);
 
-      return () => clearInterval(timer);
+    if (error) {
+      console.error('Error uploading question:', error);
+      throw new Error('Failed to add question to database');
     }
-  }, [timeLeft, isComplete, settings.timedMode]);
-
-  const formatTime = (seconds: number) => {
-    const mins = Math.floor(seconds / 60);
-    const secs = seconds % 60;
-    return `${mins}:${secs.toString().padStart(2, '0')}`;
-  };
-
-  const handleAnswerSelect = (answerIndex: number) => {
-    setSelectedAnswer(answerIndex);
-    const newAnswers = [...answers];
-    newAnswers[currentQuestion] = answerIndex;
-    setAnswers(newAnswers);
-  };
-
-  const handleOpenEndedAnswer = (answer: string) => {
-    setOpenEndedAnswer(answer);
-    const newAnswers = [...openEndedAnswers];
-    newAnswers[currentQuestion] = answer;
-    setOpenEndedAnswers(newAnswers);
-  };
-
-  const handleNext = () => {
-    if (currentQuestion < questions.length - 1) {
-      setCurrentQuestion(currentQuestion + 1);
-      setSelectedAnswer(answers[currentQuestion + 1]);
-      setOpenEndedAnswer(openEndedAnswers[currentQuestion + 1] || '');
-      setShowExplanation(false);
-    }
-  };
-
-  const handlePrevious = () => {
-    if (currentQuestion > 0) {
-      setCurrentQuestion(currentQuestion - 1);
-      setSelectedAnswer(answers[currentQuestion - 1]);
-      setOpenEndedAnswer(openEndedAnswers[currentQuestion - 1] || '');
-      setShowExplanation(false);
-    }
-  };
-
-  const handleComplete = () => {
-    const correctAnswers = questions.filter((question, index) => {
-      if (question.questionType === 'multiple_choice') {
-        return answers[index] === question.correctAnswer;
-      } else {
-        return openEndedAnswers[index] === question.correctAnswerText;
-      }
-    });
     
-    setScore(correctAnswers.length);
-    savePracticeSessionToDb();
-    setIsComplete(true);
-  };
-
-  const isAnswerCorrect = (questionIndex: number) => {
-    const question = questions[questionIndex];
-    if (question.questionType === 'multiple_choice') {
-      return answers[questionIndex] === question.correctAnswer;
-    } else {
-      return openEndedAnswers[questionIndex] === question.correctAnswerText;
+    // Verify what was actually saved
+    const { data: savedData, error: verifyError } = await supabase
+      .from('questions')
+      .select('*')
+      .order('created_at', { ascending: false })
+      .limit(1);
+      
+    if (savedData && savedData.length > 0) {
+      console.log('=== VERIFICATION ===');
+      console.log('What was actually saved to database:', savedData[0]);
+      console.log('Saved question_type:', savedData[0].question_type);
+      console.log('Saved options:', {
+        A: savedData[0].option_a,
+        B: savedData[0].option_b,
+        C: savedData[0].option_c,
+        D: savedData[0].option_d
+      });
+      console.log('Saved image_url:', savedData[0].image_url);
     }
+    
+    console.log('Question uploaded successfully');
   };
 
-  const handleStartReview = () => {
-    console.log('🔍 Starting review mode...');
-    setIsReviewMode(true);
+  const getQuestionsCount = async (): Promise<number> => {
+    const { count, error } = await supabase
+      .from('questions')
+      .select('*', { count: 'exact', head: true })
+      .eq('is_active', true);
+
+    if (error) {
+      console.error('Error getting questions count:', error);
+      return 0;
+    }
+
+    return count || 0;
   };
 
-  const handleExitReview = () => {
-    console.log('🚪 Exiting review mode...');
-    setIsReviewMode(false);
+  const getRandomHardQuestions = async (count: number): Promise<QuestionData[]> => {
+    return await getRandomMixedQuestions(count);
   };
 
-  const savePracticeSessionToDb = async () => {
+  const getAllQuestions = async (): Promise<any[]> => {
     try {
-      const correctAnswers = questions.filter((question, index) => {
-        if (question.questionType === 'multiple_choice') {
-          return answers[index] === question.correctAnswer;
-        } else {
-          return openEndedAnswers[index] === question.correctAnswerText;
-        }
-      });
+      const { data, error } = await supabase
+        .from('questions')
+        .select(`
+          id,
+          question_number,
+          question,
+          option_a,
+          option_b,
+          option_c,
+          option_d,
+          correct_answer,
+          explanation,
+          topic,
+          difficulty,
+          question_type,
+          image_url,
+          created_at,
+          created_by,
+          is_active
+        `)
+        .eq('is_active', true)
+        .order('created_at', { ascending: false });
 
-      const timeSpent = settings.timedMode 
-        ? initialTotalTime - timeLeft
-        : 0;
+      if (error) {
+        console.error('Error fetching all questions:', error);
+        throw new Error('Failed to fetch questions');
+      }
 
-      await savePracticeSession({
-        topic: settings.topic === 'Mixed' ? 'Mixed Skills' : settings.topic,
-        difficulty: settings.difficulty,
-        totalQuestions: questions.length,
-        correctAnswers: correctAnswers.length,
-        timeSpentSeconds: timeSpent
-      });
+      return data || [];
     } catch (error) {
-      console.error('Failed to save practice session:', error);
+      console.error('Error in getAllQuestions:', error);
+      throw error instanceof Error ? error : new Error('Failed to fetch questions');
     }
   };
 
-  const handleRestart = () => {
-    navigate('/practice');
+  const deleteQuestion = async (id: string): Promise<void> => {
+    // Check if user is admin
+    if (!isAdmin()) {
+      throw new Error('Unauthorized: Only admin can delete questions');
+    }
+
+    try {
+      const { error } = await supabase
+        .from('questions')
+        .delete()
+        .eq('id', id);
+
+      if (error) {
+        console.error('Error deleting question:', error);
+        throw new Error('Failed to delete question');
+      }
+
+      console.log('Question deleted successfully:', id);
+    } catch (error) {
+      console.error('Error in deleteQuestion:', error);
+      throw error instanceof Error ? error : new Error('Failed to delete question');
+    }
   };
 
-  // Show review mode if active
-  if (isReviewMode) {
-    return (
-      <ReviewMode
-        questions={questions}
-        answers={answers}
-        openEndedAnswers={openEndedAnswers}
-        onExit={handleExitReview}
-      />
-    );
-  }
+  const isAdmin = (): boolean => {
+    console.log('Checking admin status for:', user?.email);
+    const isAdminUser = user?.email === 'rptestprepservices@gmail.com';
+    console.log('Is admin:', isAdminUser);
+    return isAdminUser;
+  };
 
-  if (questions.length === 0) {
-    return (
-      <div className="min-h-screen bg-white flex items-center justify-center">
-        <div className="text-center">
-          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600 mx-auto mb-4"></div>
-          <p className="text-lg text-gray-600">Generating your practice questions...</p>
-        </div>
-      </div>
-    );
-  }
+  const savePracticeSession = async (session: PracticeSession): Promise<void> => {
+    if (!user?.id) {
+      throw new Error('User must be logged in to save practice session');
+    }
 
-  if (isComplete) {
-    const percentage = Math.round((score / questions.length) * 100);
-    return (
-      <div className="min-h-screen bg-white py-8">
-        <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8">
-          <div className="bg-white rounded-xl shadow-lg p-8 text-center">
-            <div className="mb-8">
-              <div className={`w-24 h-24 mx-auto rounded-full flex items-center justify-center mb-4 ${
-                percentage >= 80 ? 'bg-green-100 text-green-600' :
-                percentage >= 60 ? 'bg-yellow-100 text-yellow-600' :
-                'bg-red-100 text-red-600'
-              }`}>
-                <span className="text-2xl font-bold">{percentage}%</span>
-              </div>
-              <h1 className="text-3xl font-bold text-gray-900 mb-2">
-                Practice Complete!
-              </h1>
-              <p className="text-lg text-gray-600">
-                You scored {score} out of {questions.length} questions correctly
-              </p>
-            </div>
+    try {
+      const { error } = await supabase
+        .from('practice_sessions')
+        .insert([{
+          user_id: user.id,
+          topic: session.topic,
+          difficulty: session.difficulty,
+          total_questions: session.totalQuestions,
+          correct_answers: session.correctAnswers,
+          time_spent_seconds: session.timeSpentSeconds,
+          session_date: new Date().toISOString().split('T')[0] // YYYY-MM-DD format
+        }]);
 
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8">
-              <div className="bg-blue-50 p-4 rounded-lg">
-                <h3 className="font-semibold text-blue-900">Topic</h3>
-                <p className="text-blue-700">{settings.topic}</p>
-              </div>
-              <div className="bg-purple-50 p-4 rounded-lg">
-                <h3 className="font-semibold text-purple-900">Difficulty</h3>
-                <p className="text-purple-700 capitalize">{settings.difficulty}</p>
-              </div>
-              <div className="bg-green-50 p-4 rounded-lg">
-                <h3 className="font-semibold text-green-900">Questions</h3>
-                <p className="text-green-700">{questions.length}</p>
-              </div>
-            </div>
+      if (error) {
+        console.error('Error saving practice session:', error);
+        throw new Error('Failed to save practice session');
+      }
 
-            <div className="flex flex-col sm:flex-row gap-4 justify-center">
-              <button
-                onClick={handleStartReview}
-                className="bg-purple-600 text-white px-6 py-3 rounded-lg font-semibold hover:bg-purple-700 transition-colors flex items-center justify-center"
-              >
-                <Eye className="h-5 w-5 mr-2" />
-                Review Answers
-              </button>
-              <button
-                onClick={handleRestart}
-                className="bg-blue-600 text-white px-6 py-3 rounded-lg font-semibold hover:bg-blue-700 transition-colors flex items-center justify-center"
-              >
-                <RotateCcw className="h-5 w-5 mr-2" />
-                Practice Again
-              </button>
-              <button
-                onClick={() => navigate('/dashboard')}
-                className="bg-gray-600 text-white px-6 py-3 rounded-lg font-semibold hover:bg-gray-700 transition-colors"
-              >
-                View Dashboard
-              </button>
-            </div>
-          </div>
-        </div>
-      </div>
-    );
-  }
+      console.log('Practice session saved successfully');
+    } catch (error) {
+      console.error('Error in savePracticeSession:', error);
+      throw error instanceof Error ? error : new Error('Failed to save practice session');
+    }
+  };
 
-  const question = questions[currentQuestion];
+  const getUserProgress = async (): Promise<UserProgress | null> => {
+    if (!user?.id) {
+      console.log('⚠️ No user ID for getUserProgress');
+      return null;
+    }
+
+    try {
+      console.log('📊 Fetching user progress for:', user.id);
+      const { data, error } = await supabase
+        .from('user_progress')
+        .select('*')
+        .eq('user_id', user.id)
+        .limit(1)
+        .maybeSingle();
+
+      if (error) {
+        console.error('❌ Error fetching user progress:', error);
+        return {
+          totalQuestionsAnswered: 0,
+          totalCorrectAnswers: 0,
+          totalTimeSpentSeconds: 0,
+          currentStreak: 0,
+          lastPracticeDate: null
+        };
+      }
+
+      if (!data) {
+        console.log('📊 No user progress data, returning defaults');
+        return {
+          totalQuestionsAnswered: 0,
+          totalCorrectAnswers: 0,
+          totalTimeSpentSeconds: 0,
+          currentStreak: 0,
+          lastPracticeDate: null
+        };
+      }
+
+      console.log('📊 User progress found:', data);
+      const result = {
+        totalQuestionsAnswered: data.total_questions_answered || 0,
+        totalCorrectAnswers: data.total_correct_answers || 0,
+        totalTimeSpentSeconds: data.total_time_spent_seconds || 0,
+        currentStreak: data.current_streak || 0,
+        lastPracticeDate: data.last_practice_date
+      };
+      console.log('📊 Returning user progress:', result);
+      return result;
+    } catch (error) {
+      console.error('❌ Error in getUserProgress:', error);
+      return null;
+    }
+  };
+
+  const getTopicMastery = async (): Promise<TopicMastery[]> => {
+    if (!user?.id) {
+      console.log('⚠️ No user ID for getTopicMastery');
+      return [];
+    }
+
+    try {
+      console.log('📈 Fetching topic mastery for:', user.id);
+      const { data, error } = await supabase
+        .from('topic_mastery')
+        .select('topic, mastery_percentage')
+        .eq('user_id', user.id)
+        .order('topic');
+
+      if (error) {
+        console.error('❌ Error fetching topic mastery:', error);
+        return [];
+      }
+
+      console.log('📈 Topic mastery data:', data);
+      return (data || []).map(item => ({
+        topic: item.topic,
+        masteryPercentage: item.mastery_percentage
+      }));
+    } catch (error) {
+      console.error('❌ Error in getTopicMastery:', error);
+      return [];
+    }
+  };
+
+  const getRecentSessions = async (limit: number = 5): Promise<RecentSession[]> => {
+    if (!user?.id) {
+      console.log('⚠️ No user ID for getRecentSessions');
+      return [];
+    }
+
+    try {
+      console.log('📅 Fetching recent sessions for:', user.id);
+      const { data, error } = await supabase
+        .from('practice_sessions')
+        .select('id, topic, difficulty, total_questions, correct_answers, time_spent_seconds, session_date')
+        .eq('user_id', user.id)
+        .order('created_at', { ascending: false })
+        .limit(limit);
+
+      if (error) {
+        console.error('❌ Error fetching recent sessions:', error);
+        return [];
+      }
+
+      console.log('📅 Recent sessions data:', data);
+      return (data || []).map(session => ({
+        id: session.id,
+        topic: session.topic,
+        difficulty: session.difficulty,
+        score: session.correct_answers,
+        total: session.total_questions,
+        date: session.session_date,
+        timeSpent: session.time_spent_seconds
+      }));
+    } catch (error) {
+      console.error('❌ Error in getRecentSessions:', error);
+      return [];
+    }
+  };
+
+  const value = {
+    generateQuestions,
+    uploadSingleQuestion,
+    getQuestionsCount,
+    getRandomHardQuestions,
+    getAllQuestions,
+    deleteQuestion,
+    isAdmin,
+    savePracticeSession,
+    getUserProgress,
+    getTopicMastery,
+    getRecentSessions
+  };
 
   return (
-    <div className="min-h-screen bg-white py-8">
-      <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8">
-        {/* Header */}
-        <div className="bg-white rounded-xl shadow-lg p-6 mb-6">
-          <div className="flex justify-between items-center">
-            <div>
-              <h1 className="text-xl font-semibold text-gray-900">
-                {settings.topic} - {settings.difficulty.charAt(0).toUpperCase() + settings.difficulty.slice(1)}
-              </h1>
-              <p className="text-gray-600">
-                Question {currentQuestion + 1} of {questions.length}
-              </p>
-            </div>
-            
-            {settings.timedMode && (
-              <div className="flex items-center space-x-2 text-lg">
-                <Clock className="h-5 w-5 text-orange-600" />
-                <span className={`font-mono font-semibold ${
-                  timeLeft < 60 ? 'text-red-600' : 'text-gray-700'
-                }`}>
-                  {formatTime(timeLeft)}
-                </span>
-              </div>
-            )}
-          </div>
-          
-          <div className="mt-4 bg-gray-200 rounded-full h-2">
-            <div 
-              className="bg-teal-600 h-2 rounded-full transition-all duration-300"
-              style={{ width: `${((currentQuestion + 1) / questions.length) * 100}%` }}
-            />
-          </div>
-        </div>
-
-        {/* Question */}
-        <div className="bg-white rounded-xl shadow-lg p-6 mb-6">
-          <div className="mb-6">
-            <div className="text-lg font-medium text-gray-900 mb-4 font-sans">
-              <MathRenderer>{question.question}</MathRenderer>
-            </div>
-            
-            {/* Display question image if available */}
-            {question.imageUrl && question.imageUrl.trim() !== '' && question.imageUrl !== 'null' && (
-              <div className="mb-6">
-                <p className="text-sm text-gray-500 mb-2">Question Image:</p>
-                <img
-                  src={question.imageUrl}
-                  alt="Question diagram"
-                  className="max-w-full h-auto max-h-96 rounded-lg border border-gray-200 shadow-sm mx-auto block"
-                  onError={(e) => {
-                    e.currentTarget.style.display = 'none';
-                  }}
-                />
-              </div>
-            )}
-            
-            {question.questionType === 'multiple_choice' ? (
-              <div className="space-y-3">
-                {question.options.map((option, index) => {
-                  const buttonClass = selectedAnswer === index
-                    ? 'border-teal-600 bg-teal-50 text-teal-700'
-                    : 'border-gray-200 hover:border-gray-300';
-                  
-                  return (
-                    <button
-                      key={index}
-                      onClick={() => handleAnswerSelect(index)}
-                      className={`w-full p-4 text-left rounded-lg border-2 transition-all ${buttonClass} cursor-pointer`}
-                    >
-                      <div className="flex items-start space-x-3">
-                        <span className="font-medium">
-                          {String.fromCharCode(65 + index)}.
-                        </span>
-                        <div className="flex-1">
-                          {(option.startsWith('http') || option.startsWith('https://')) && 
-                           (option.includes('.jpg') || option.includes('.png') || option.includes('.gif') || 
-                            option.includes('.svg') || option.includes('.jpeg') || option.includes('.webp') || 
-                            option.includes('supabase') || option.includes('storage')) ? (
-                            <img
-                              src={option}
-                              alt="Option"
-                              className="max-w-full h-auto max-h-48 rounded border border-gray-300 shadow-sm"
-                              onError={(e) => {
-                                e.currentTarget.outerHTML = `<div class="text-red-500 text-sm">Image failed to load</div>`;
-                              }}
-                            />
-                          ) : (
-                            <MathRenderer inline>{option}</MathRenderer>
-                          )}
-                        </div>
-                      </div>
-                    </button>
-                  );
-                })}
-              </div>
-            ) : (
-              <div className="space-y-4">
-                <label className="block text-sm font-medium text-gray-700 mb-2">
-                  Enter your numeric answer:
-                </label>
-                <input
-                  type="text"
-                  value={openEndedAnswer}
-                  onChange={(e) => handleOpenEndedAnswer(e.target.value)}
-                  className="w-full p-4 border-2 border-gray-200 rounded-lg focus:border-teal-600 focus:outline-none text-center text-lg font-medium"
-                  placeholder="Enter number (e.g., 42, 3.14, -5)"
-                />
-              </div>
-            )}
-          </div>
-
-          {/* Explanation Section */}
-          {((question.questionType === 'multiple_choice' && selectedAnswer !== null) || 
-           (question.questionType === 'open_ended' && openEndedAnswer.trim() !== '')) && (
-            <div className="border-t pt-4">
-              <button
-                onClick={() => setShowExplanation(!showExplanation)}
-                className="text-teal-600 hover:text-teal-700 font-medium mb-3"
-              >
-                {showExplanation ? 'Hide Answer' : 'Check Answer'}
-              </button>
-              
-              {showExplanation && (
-                <div className="space-y-4">
-                  {/* Answer Status */}
-                  <div className={`p-4 rounded-lg ${
-                    isAnswerCorrect(currentQuestion)
-                      ? 'bg-green-50 border border-green-200'
-                      : 'bg-red-50 border border-red-200'
-                  }`}>
-                    <div className="flex items-center mb-2">
-                      {isAnswerCorrect(currentQuestion) ? (
-                        <Check className="h-5 w-5 text-green-600 mr-2" />
-                      ) : (
-                        <X className="h-5 w-5 text-red-600 mr-2" />
-                      )}
-                      <span className="font-semibold">
-                        {isAnswerCorrect(currentQuestion) ? 'Correct!' : 'Incorrect'}
-                      </span>
-                    </div>
-                    
-                    {/* Show correct answer for incorrect responses */}
-                    {!isAnswerCorrect(currentQuestion) && (
-                      <p className="text-sm text-gray-700 mt-2">
-                        <strong>Correct answer:</strong> {question.questionType === 'multiple_choice' 
-                          ? `${String.fromCharCode(65 + question.correctAnswer)} - ${question.options[question.correctAnswer]}`
-                          : question.correctAnswerText}
-                      </p>
-                    )}
-                  </div>
-                  
-                  {/* Explanation */}
-                  {question.explanation && (
-                    <div className="p-4 rounded-lg bg-blue-50 border border-blue-200">
-                      <h4 className="font-semibold text-blue-900 mb-2">Explanation:</h4>
-                      <p className="text-blue-800">
-                        <MathRenderer>{question.explanation}</MathRenderer>
-                      </p>
-                    </div>
-                  )}
-                </div>
-              )}
-            </div>
-          )}
-        </div>
-
-        {/* Navigation */}
-        <div className="flex justify-between items-center">
-          <button
-            onClick={handlePrevious}
-            disabled={currentQuestion === 0}
-            className={`flex items-center space-x-2 px-4 py-2 rounded-lg font-medium transition-colors ${
-              currentQuestion === 0
-                ? 'bg-gray-200 text-gray-400 cursor-not-allowed'
-                : 'bg-gray-600 text-white hover:bg-gray-700'
-            }`}
-          >
-            <ArrowLeft className="h-4 w-4" />
-            <span>Previous</span>
-          </button>
-
-          {currentQuestion === questions.length - 1 ? (
-            <button
-              onClick={handleComplete}
-              className="bg-green-600 text-white px-6 py-2 rounded-lg font-medium hover:bg-green-700 transition-colors"
-            >
-              Complete Practice
-            </button>
-          ) : (
-            <button
-              onClick={handleNext}
-              className="flex items-center space-x-2 bg-teal-600 text-white px-4 py-2 rounded-lg font-medium hover:bg-teal-700 transition-colors"
-            >
-              <span>Next</span>
-              <ArrowRight className="h-4 w-4" />
-            </button>
-          )}
-        </div>
-      </div>
-    </div>
+    <QuestionContext.Provider value={value}>
+      {children}
+    </QuestionContext.Provider>
   );
 };
-
-export default QuestionGenerator;

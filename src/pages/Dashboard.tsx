@@ -1,743 +1,592 @@
 import React, { useState, useEffect } from 'react';
-import { useLocation, useNavigate } from 'react-router-dom';
-import { Clock, Check, X, ArrowRight, ArrowLeft, RotateCcw, Eye, Home } from 'lucide-react';
-import MathRenderer from '../components/MathRenderer';
+import { Link } from 'react-router-dom';
+import { 
+  TrendingUp, 
+  Target, 
+  Clock, 
+  Award, 
+  BookOpen, 
+  Calendar,
+  BarChart3,
+  Zap,
+  CheckCircle,
+  Star,
+  ArrowRight
+} from 'lucide-react';
+import { useAuth } from '../contexts/AuthContext';
 import { useQuestions } from '../contexts/QuestionContext';
+import Navbar from '../components/Navbar';
 
-interface QuestionData {
-  id: string;
-  question: string;
-  questionType: 'multiple_choice' | 'open_ended';
-  options: string[];
-  correctAnswer: number;
-  correctAnswerText: string;
-  explanation: string;
-  topic: string;
-  difficulty: string;
+interface UserProgress {
+  totalQuestionsAnswered: number;
+  totalCorrectAnswers: number;
+  totalTimeSpentSeconds: number;
+  currentStreak: number;
+  lastPracticeDate: string | null;
 }
 
-// Separate Review Component
-const ReviewMode = ({ 
-  questions, 
-  answers, 
-  openEndedAnswers, 
-  onExit 
-}: {
-  questions: QuestionData[];
-  answers: (number | null)[];
-  openEndedAnswers: string[];
-  onExit: () => void;
-}) => {
-  const [currentQuestion, setCurrentQuestion] = useState(0);
-  const navigate = useNavigate();
+interface TopicMastery {
+  topic: string;
+  masteryPercentage: number;
+}
 
-  const isAnswerCorrect = (questionIndex: number) => {
-    const question = questions[questionIndex];
-    if (question.questionType === 'multiple_choice') {
-      return answers[questionIndex] === question.correctAnswer;
-    } else {
-      return openEndedAnswers[questionIndex] === question.correctAnswerText;
-    }
-  };
+interface RecentSession {
+  id: string;
+  topic: string;
+  difficulty: string;
+  score: number;
+  total: number;
+  date: string;
+  timeSpent: number;
+}
 
-  const handleNext = () => {
-    if (currentQuestion < questions.length - 1) {
-      setCurrentQuestion(currentQuestion + 1);
-    }
-  };
-
-  const handlePrevious = () => {
-    if (currentQuestion > 0) {
-      setCurrentQuestion(currentQuestion - 1);
-    }
-  };
-
-  const question = questions[currentQuestion];
-
-  return (
-    <div className="min-h-screen bg-white py-8">
-      <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8">
-        {/* Header */}
-        <div className="bg-purple-50 border-2 border-purple-200 rounded-xl shadow-lg p-6 mb-6">
-          <div className="flex justify-between items-center">
-            <div>
-              <h1 className="text-xl font-semibold text-purple-900">
-                Review Mode: Question {currentQuestion + 1} of {questions.length}
-              </h1>
-              <p className="text-purple-700">
-                <span className={`ml-4 px-2 py-1 rounded-full text-xs font-medium ${
-                  isAnswerCorrect(currentQuestion) 
-                    ? 'bg-green-100 text-green-800' 
-                    : 'bg-red-100 text-red-800'
-                }`}>
-                  {isAnswerCorrect(currentQuestion) ? 'Correct' : 'Incorrect'}
-                </span>
-              </p>
-            </div>
-            <button
-              onClick={onExit}
-              className="bg-gray-600 text-white px-4 py-2 rounded-lg font-medium hover:bg-gray-700 transition-colors"
-            >
-              Exit Review
-            </button>
-          </div>
-          
-          <div className="mt-4 bg-gray-200 rounded-full h-2">
-            <div 
-              className="bg-purple-600 h-2 rounded-full transition-all duration-300"
-              style={{ width: `${((currentQuestion + 1) / questions.length) * 100}%` }}
-            />
-          </div>
-        </div>
-
-        {/* Question */}
-        <div className="bg-white rounded-xl shadow-lg p-6 mb-6">
-          <div className="mb-6">
-            <div className="text-lg font-medium text-gray-900 mb-4 font-sans">
-              <MathRenderer>{question.question}</MathRenderer>
-            </div>
-            
-            {/* Display question image if available */}
-            {question.imageUrl && question.imageUrl.trim() !== '' && question.imageUrl !== 'null' && (
-              <div className="mb-6">
-                <p className="text-sm text-gray-500 mb-2">Question Image:</p>
-                <img
-                  src={question.imageUrl}
-                  alt="Question diagram"
-                  className="max-w-full h-auto max-h-96 rounded-lg border border-gray-200 shadow-sm mx-auto block"
-                  onError={(e) => {
-                    e.currentTarget.style.display = 'none';
-                  }}
-                />
-              </div>
-            )}
-            
-            {question.questionType === 'multiple_choice' ? (
-              <div className="space-y-3">
-                {question.options.map((option, index) => {
-                  const isUserAnswer = answers[currentQuestion] === index;
-                  const isCorrectAnswer = index === question.correctAnswer;
-                  const isUserCorrect = answers[currentQuestion] === question.correctAnswer;
-                  
-                  let buttonClass = '';
-                  let iconElement = null;
-                  
-                  if (isCorrectAnswer) {
-                    buttonClass = 'border-green-500 bg-green-50 text-green-700';
-                    iconElement = <Check className="h-5 w-5 text-green-600" />;
-                  } else if (isUserAnswer && !isUserCorrect) {
-                    buttonClass = 'border-red-500 bg-red-50 text-red-700';
-                    iconElement = <X className="h-5 w-5 text-red-600" />;
-                  } else {
-                    buttonClass = 'border-gray-200 bg-gray-50 text-gray-600';
-                  }
-                  
-                  return (
-                    <div
-                      key={index}
-                      className={`w-full p-4 text-left rounded-lg border-2 transition-all ${buttonClass} cursor-default`}
-                    >
-                      <div className="flex items-start space-x-3">
-                        <div className="flex items-center space-x-2">
-                          <span className="font-medium">
-                            {String.fromCharCode(65 + index)}.
-                          </span>
-                          {iconElement}
-                        </div>
-                        <div className="flex-1">
-                          {(option.startsWith('http') || option.startsWith('https://')) && 
-                           (option.includes('.jpg') || option.includes('.png') || option.includes('.gif') || 
-                            option.includes('.svg') || option.includes('.jpeg') || option.includes('.webp') || 
-                            option.includes('supabase') || option.includes('storage')) ? (
-                            <img
-                              src={option}
-                              alt="Option"
-                              className="max-w-full h-auto max-h-48 rounded border border-gray-300 shadow-sm"
-                              onError={(e) => {
-                                e.currentTarget.outerHTML = `<div class="text-red-500 text-sm">Image failed to load</div>`;
-                              }}
-                            />
-                          ) : (
-                            <MathRenderer inline>{option}</MathRenderer>
-                          )}
-                        </div>
-                      </div>
-                    </div>
-                  );
-                })}
-              </div>
-            ) : (
-              <div className="space-y-4">
-                <div className={`p-4 rounded-lg border-2 ${
-                  openEndedAnswers[currentQuestion] === question.correctAnswerText
-                    ? 'border-green-500 bg-green-50'
-                    : 'border-red-500 bg-red-50'
-                }`}>
-                  <div className="flex items-center mb-2">
-                    {openEndedAnswers[currentQuestion] === question.correctAnswerText ? (
-                      <Check className="h-5 w-5 text-green-600 mr-2" />
-                    ) : (
-                      <X className="h-5 w-5 text-red-600 mr-2" />
-                    )}
-                    <span className="font-semibold">Your Answer:</span>
-                  </div>
-                  <p className="text-lg font-mono">
-                    {openEndedAnswers[currentQuestion] || 'No answer provided'}
-                  </p>
-                </div>
-                
-                {openEndedAnswers[currentQuestion] !== question.correctAnswerText && (
-                  <div className="p-4 rounded-lg border-2 border-green-500 bg-green-50">
-                    <div className="flex items-center mb-2">
-                      <Check className="h-5 w-5 text-green-600 mr-2" />
-                      <span className="font-semibold text-green-800">Correct Answer:</span>
-                    </div>
-                    <p className="text-lg font-mono text-green-700">
-                      {question.correctAnswerText}
-                    </p>
-                  </div>
-                )}
-              </div>
-            )}
-          </div>
-
-          {/* Explanation Section - Always shown in review mode */}
-          <div className="border-t pt-4">
-            <div className="space-y-4">
-              {/* Answer Status */}
-              <div className={`p-4 rounded-lg ${
-                isAnswerCorrect(currentQuestion)
-                  ? 'bg-green-50 border border-green-200'
-                  : 'bg-red-50 border border-red-200'
-              }`}>
-                <div className="flex items-center mb-2">
-                  {isAnswerCorrect(currentQuestion) ? (
-                    <Check className="h-5 w-5 text-green-600 mr-2" />
-                  ) : (
-                    <X className="h-5 w-5 text-red-600 mr-2" />
-                  )}
-                  <span className="font-semibold">
-                    {isAnswerCorrect(currentQuestion) ? 'Correct!' : 'Incorrect'}
-                  </span>
-                </div>
-                
-                {/* Show correct answer for incorrect responses */}
-                {!isAnswerCorrect(currentQuestion) && (
-                  <p className="text-sm text-gray-700 mt-2">
-                    <strong>Correct answer:</strong> {question.questionType === 'multiple_choice' 
-                      ? `${String.fromCharCode(65 + question.correctAnswer)} - ${question.options[question.correctAnswer]}`
-                      : question.correctAnswerText}
-                  </p>
-                )}
-              </div>
-              
-              {/* Explanation */}
-              {question.explanation && (
-                <div className="p-4 rounded-lg bg-blue-50 border border-blue-200">
-                  <h4 className="font-semibold text-blue-900 mb-2">Explanation:</h4>
-                  <p className="text-blue-800">
-                    <MathRenderer>{question.explanation}</MathRenderer>
-                  </p>
-                </div>
-              )}
-            </div>
-          </div>
-        </div>
-
-        {/* Navigation */}
-        <div className="flex justify-between items-center">
-          <button
-            onClick={handlePrevious}
-            disabled={currentQuestion === 0}
-            className={`flex items-center space-x-2 px-4 py-2 rounded-lg font-medium transition-colors ${
-              currentQuestion === 0
-                ? 'bg-gray-200 text-gray-400 cursor-not-allowed'
-                : 'bg-purple-600 text-white hover:bg-purple-700'
-            }`}
-          >
-            <ArrowLeft className="h-4 w-4" />
-            <span>Previous</span>
-          </button>
-
-          <div className="flex items-center space-x-4">
-            <button
-              onClick={() => navigate('/dashboard')}
-              className="flex items-center space-x-2 bg-gray-600 text-white px-4 py-2 rounded-lg font-medium hover:bg-gray-700 transition-colors"
-            >
-              <Home className="h-4 w-4" />
-              <span>Dashboard</span>
-            </button>
-            <button
-              onClick={() => navigate('/practice')}
-              className="flex items-center space-x-2 bg-blue-600 text-white px-4 py-2 rounded-lg font-medium hover:bg-blue-700 transition-colors"
-            >
-              <RotateCcw className="h-4 w-4" />
-              <span>Practice Again</span>
-            </button>
-          </div>
-
-          <button
-            onClick={handleNext}
-            disabled={currentQuestion === questions.length - 1}
-            className={`flex items-center space-x-2 px-4 py-2 rounded-lg font-medium transition-colors ${
-              currentQuestion === questions.length - 1
-                ? 'bg-gray-200 text-gray-400 cursor-not-allowed'
-                : 'bg-purple-600 text-white hover:bg-purple-700'
-            }`}
-          >
-            <span>Next</span>
-            <ArrowRight className="h-4 w-4" />
-          </button>
-        </div>
-      </div>
-    </div>
-  );
-};
-
-const QuestionGenerator = () => {
-  const location = useLocation();
-  const navigate = useNavigate();
-  const { generateQuestions, savePracticeSession } = useQuestions();
-  const [questions, setQuestions] = useState<QuestionData[]>([]);
-  const [currentQuestion, setCurrentQuestion] = useState(0);
-  const [selectedAnswer, setSelectedAnswer] = useState<number | null>(null);
-  const [openEndedAnswer, setOpenEndedAnswer] = useState('');
-  const [showExplanation, setShowExplanation] = useState(false);
-  const [answers, setAnswers] = useState<(number | null)[]>([]);
-  const [openEndedAnswers, setOpenEndedAnswers] = useState<string[]>([]);
-  const [timeLeft, setTimeLeft] = useState(0);
-  const [initialTotalTime, setInitialTotalTime] = useState(0);
-  const [isComplete, setIsComplete] = useState(false);
-  const [isReviewMode, setIsReviewMode] = useState(false);
-  const [score, setScore] = useState(0);
-
-  const settings = location.state || {
-    topic: 'Algebra',
-    difficulty: 'medium',
-    questionCount: 10,
-    timedMode: false,
-    customTimePerQuestion: 2
-  };
+const Dashboard = () => {
+  const { user, refreshUser } = useAuth();
+  const { getUserProgress, getTopicMastery, getRecentSessions } = useQuestions();
+  
+  // Add debugging for dashboard
+  console.log('🏠 Dashboard component rendered');
+  console.log('👤 Current user:', user);
+  console.log('⏳ User loading state:', user === null ? 'No user' : 'User exists');
+  
+  const [progress, setProgress] = useState<UserProgress | null>(null);
+  const [topicMastery, setTopicMastery] = useState<TopicMastery[]>([]);
+  const [recentSessions, setRecentSessions] = useState<RecentSession[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [showPaymentSuccess, setShowPaymentSuccess] = useState(false);
+  const [error, setError] = useState('');
 
   useEffect(() => {
-    const loadQuestions = async () => {
-      const generatedQuestions = await generateQuestions(settings);
-      setQuestions(generatedQuestions);
-      setAnswers(new Array(generatedQuestions.length).fill(null));
-      setOpenEndedAnswers(new Array(generatedQuestions.length).fill(''));
-      
-      if (settings.timedMode) {
-        const totalTime = generatedQuestions.length * (settings.customTimePerQuestion * 60);
-        setTimeLeft(totalTime);
-        setInitialTotalTime(totalTime);
+    // Check for payment success in URL
+    const urlParams = new URLSearchParams(window.location.search);
+    if (urlParams.get('payment') === 'success') {
+      setShowPaymentSuccess(true);
+      // Clean up URL
+      window.history.replaceState({}, document.title, window.location.pathname);
+      // Refresh user data to get updated premium status with delay
+      console.log('💳 Payment success detected, refreshing user data...');
+      setTimeout(() => {
+        refreshUser();
+      }, 2000); // Give webhook time to process
+    }
+
+    const loadDashboardData = async () => {
+      try {
+        console.log('🔄 Loading dashboard data...');
+        const [progressData, masteryData, sessionsData] = await Promise.all([
+          getUserProgress(),
+          getTopicMastery(),
+          getRecentSessions(5)
+        ]);
+
+        console.log('📊 Dashboard data loaded:', {
+          progress: progressData,
+          mastery: masteryData,
+          sessions: sessionsData
+        });
+
+        setProgress(progressData);
+        setTopicMastery(masteryData);
+        setRecentSessions(sessionsData);
+      } catch (error) {
+        console.error('❌ Error loading dashboard data:', error);
+      } finally {
+        setLoading(false);
       }
     };
 
-    loadQuestions();
-  }, [settings]);
-
-  useEffect(() => {
-    if (settings.timedMode && timeLeft > 0 && !isComplete) {
-      const timer = setInterval(() => {
-        setTimeLeft(prev => {
-          if (prev <= 1) {
-            setIsComplete(true);
-            return 0;
-          }
-          return prev - 1;
-        });
-      }, 1000);
-
-      return () => clearInterval(timer);
+    if (user) {
+      loadDashboardData();
+    } else {
+      setLoading(false);
     }
-  }, [timeLeft, isComplete, settings.timedMode]);
+  }, [user, getUserProgress, getTopicMastery, getRecentSessions, refreshUser]);
 
   const formatTime = (seconds: number) => {
-    const mins = Math.floor(seconds / 60);
-    const secs = seconds % 60;
-    return `${mins}:${secs.toString().padStart(2, '0')}`;
-  };
-
-  const handleAnswerSelect = (answerIndex: number) => {
-    setSelectedAnswer(answerIndex);
-    const newAnswers = [...answers];
-    newAnswers[currentQuestion] = answerIndex;
-    setAnswers(newAnswers);
-  };
-
-  const handleOpenEndedAnswer = (answer: string) => {
-    setOpenEndedAnswer(answer);
-    const newAnswers = [...openEndedAnswers];
-    newAnswers[currentQuestion] = answer;
-    setOpenEndedAnswers(newAnswers);
-  };
-
-  const handleNext = () => {
-    if (currentQuestion < questions.length - 1) {
-      setCurrentQuestion(currentQuestion + 1);
-      setSelectedAnswer(answers[currentQuestion + 1]);
-      setOpenEndedAnswer(openEndedAnswers[currentQuestion + 1] || '');
-      setShowExplanation(false);
+    const hours = Math.floor(seconds / 3600);
+    const minutes = Math.floor((seconds % 3600) / 60);
+    if (hours > 0) {
+      return `${hours}h ${minutes}m`;
     }
+    return `${minutes}m`;
   };
 
-  const handlePrevious = () => {
-    if (currentQuestion > 0) {
-      setCurrentQuestion(currentQuestion - 1);
-      setSelectedAnswer(answers[currentQuestion - 1]);
-      setOpenEndedAnswer(openEndedAnswers[currentQuestion - 1] || '');
-      setShowExplanation(false);
-    }
-  };
-
-  const handleComplete = () => {
-    const correctAnswers = questions.filter((question, index) => {
-      if (question.questionType === 'multiple_choice') {
-        return answers[index] === question.correctAnswer;
-      } else {
-        return openEndedAnswers[index] === question.correctAnswerText;
-      }
+  const formatDate = (dateString: string) => {
+    return new Date(dateString).toLocaleDateString('en-US', {
+      month: 'short',
+      day: 'numeric'
     });
-    
-    setScore(correctAnswers.length);
-    savePracticeSessionToDb();
-    setIsComplete(true);
   };
 
-  const isAnswerCorrect = (questionIndex: number) => {
-    const question = questions[questionIndex];
-    if (question.questionType === 'multiple_choice') {
-      return answers[questionIndex] === question.correctAnswer;
-    } else {
-      return openEndedAnswers[questionIndex] === question.correctAnswerText;
-    }
+  const getAccuracyPercentage = () => {
+    if (!progress || progress.totalQuestionsAnswered === 0) return 0;
+    return Math.round((progress.totalCorrectAnswers / progress.totalQuestionsAnswered) * 100);
   };
 
-  const handleStartReview = () => {
-    console.log('🔍 Starting review mode...');
-  };
-
-  const handleExitReview = () => {
-    console.log('🚪 Exiting review mode...');
-    setIsReviewMode(false);
-  };
-  const savePracticeSessionToDb = async () => {
-    try {
-      const correctAnswers = questions.filter((question, index) => {
-        if (question.questionType === 'multiple_choice') {
-          return answers[index] === question.correctAnswer;
-        } else {
-          return openEndedAnswers[index] === question.correctAnswerText;
-        }
-      });
-
-      const timeSpent = settings.timedMode 
-        ? initialTotalTime - timeLeft
-        : 0;
-
-      await savePracticeSession({
-        topic: settings.topic === 'Mixed' ? 'Mixed Skills' : settings.topic,
-        difficulty: settings.difficulty,
-        totalQuestions: questions.length,
-        correctAnswers: correctAnswers.length,
-        timeSpentSeconds: timeSpent
-      });
-    } catch (error) {
-      console.error('Failed to save practice session:', error);
-    }
-  };
-
-  const handleRestart = () => {
-    navigate('/practice');
-  };
-
-  // Show review mode if active
-  if (isReviewMode) {
+  if (!user) {
     return (
-      <ReviewMode
-        questions={questions}
-        answers={answers}
-        openEndedAnswers={openEndedAnswers}
-        onExit={handleExitReview}
-      />
-    );
-  }
-
-  if (questions.length === 0) {
-    return (
-      <div className="min-h-screen bg-white flex items-center justify-center">
-        <div className="text-center">
-          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600 mx-auto mb-4"></div>
-          <p className="text-lg text-gray-600">Generating your practice questions...</p>
-        </div>
-      </div>
-    );
-  }
-
-  if (isComplete) {
-    const percentage = Math.round((score / questions.length) * 100);
-    return (
-      <div className="min-h-screen bg-white py-8">
-        <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8">
-          <div className="bg-white rounded-xl shadow-lg p-8 text-center">
-            <div className="mb-8">
-              <div className={`w-24 h-24 mx-auto rounded-full flex items-center justify-center mb-4 ${
-                percentage >= 80 ? 'bg-green-100 text-green-600' :
-                percentage >= 60 ? 'bg-yellow-100 text-yellow-600' :
-                'bg-red-100 text-red-600'
-              }`}>
-                <span className="text-2xl font-bold">{percentage}%</span>
-              </div>
-              <h1 className="text-3xl font-bold text-gray-900 mb-2">
-                Practice Complete!
-              </h1>
-              <p className="text-lg text-gray-600">
-                You scored {score} out of {questions.length} questions correctly
-              </p>
-            </div>
-
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8">
-              <div className="bg-blue-50 p-4 rounded-lg">
-                <h3 className="font-semibold text-blue-900">Topic</h3>
-                <p className="text-blue-700">{settings.topic}</p>
-              </div>
-              <div className="bg-purple-50 p-4 rounded-lg">
-                <h3 className="font-semibold text-purple-900">Difficulty</h3>
-                <p className="text-purple-700 capitalize">{settings.difficulty}</p>
-              </div>
-              <div className="bg-green-50 p-4 rounded-lg">
-                <h3 className="font-semibold text-green-900">Questions</h3>
-                <p className="text-green-700">{questions.length}</p>
-              </div>
-            </div>
-
-            <div className="flex flex-col sm:flex-row gap-4 justify-center">
-              <button
-                onClick={handleStartReview}
-                className="bg-purple-600 text-white px-6 py-3 rounded-lg font-semibold hover:bg-purple-700 transition-colors flex items-center justify-center"
-              >
-                <Eye className="h-5 w-5 mr-2" />
-                Review Answers
-              </button>
-              <button
-                onClick={handleRestart}
-                className="bg-blue-600 text-white px-6 py-3 rounded-lg font-semibold hover:bg-blue-700 transition-colors flex items-center justify-center"
-              >
-                <RotateCcw className="h-5 w-5 mr-2" />
-                Practice Again
-              </button>
-              <button
-                onClick={() => navigate('/dashboard')}
-                className="bg-gray-600 text-white px-6 py-3 rounded-lg font-semibold hover:bg-gray-700 transition-colors"
-              >
-                View Dashboard
-              </button>
-            </div>
+      <div className="min-h-screen bg-white">
+        <Navbar />
+        <div className="flex items-center justify-center min-h-screen">
+          <div className="text-center">
+            <h1 className="text-2xl font-bold text-gray-900 mb-4">Please sign in to view your dashboard</h1>
+            <Link to="/login" className="text-blue-600 hover:text-blue-700">
+              Sign In
+            </Link>
           </div>
         </div>
       </div>
     );
   }
 
-  const question = questions[currentQuestion];
+  if (loading) {
+    return (
+      <div className="min-h-screen bg-white">
+        <Navbar />
+        <div className="flex items-center justify-center min-h-screen">
+          <div className="text-center">
+            <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600 mx-auto mb-4"></div>
+            <p className="text-lg text-gray-600">Loading your dashboard...</p>
+          </div>
+        </div>
+      </div>
+    );
+  }
 
   return (
-    <div className="min-h-screen bg-white py-8">
-      <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8">
-        {/* Header */}
-        <div className="bg-white rounded-xl shadow-lg p-6 mb-6">
-          <div className="flex justify-between items-center">
+    <div className="min-h-screen bg-gray-50">
+      <Navbar />
+      
+      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+        {/* Payment Success Banner */}
+        {showPaymentSuccess && (
+          <div className="mb-8 bg-green-50 border border-green-200 rounded-2xl p-6 animate-slide-up">
+            <div className="flex items-center">
+              <CheckCircle className="h-8 w-8 text-green-600 mr-4" />
+              <div>
+                <h3 className="text-lg font-semibold text-green-900">Payment Successful! 🎉</h3>
+                <p className="text-green-700">Welcome to PrepHub Premium! You now have access to all 300 questions and advanced features.</p>
+                <p className="text-green-600 text-sm mt-1">If you don't see premium features yet, try the refresh button below.</p>
+                <button
+                  onClick={async () => {
+                    console.log('🔄 Manual refresh triggered');
+                    await refreshUser();
+                    window.location.reload();
+                  }}
+                  className="mt-2 bg-green-600 text-white px-4 py-2 rounded-lg text-sm hover:bg-green-700"
+                >
+                  Refresh Status
+                </button>
+              </div>
+              <button
+                onClick={() => setShowPaymentSuccess(false)}
+                className="ml-auto text-green-600 hover:text-green-800"
+              >
+                ×
+              </button>
+            </div>
+          </div>
+        )}
+
+        {/* Error Display */}
+        {error && (
+          <div className="mb-8 bg-red-50 border border-red-200 rounded-2xl p-4 animate-slide-up">
+            <p className="text-red-800 text-sm">{error}</p>
+            <button
+              onClick={() => setError('')}
+              className="mt-2 text-red-600 hover:text-red-800 text-xs"
+            >
+              Dismiss
+            </button>
+          </div>
+        )}
+
+        {/* Webhook Test Button for Debugging */}
+        <div className="mb-8 bg-blue-50 border border-blue-200 rounded-2xl p-6 animate-slide-up">
+          <div className="space-y-4">
             <div>
-              <h1 className="text-xl font-semibold text-gray-900">
-                {settings.topic} - {settings.difficulty.charAt(0).toUpperCase() + settings.difficulty.slice(1)}
-              </h1>
-              <p className="text-gray-600">
-                Question {currentQuestion + 1} of {questions.length}
+              <h3 className="text-lg font-semibold text-blue-900">Webhook Configuration</h3>
+              <p className="text-blue-700 text-sm">Your Stripe webhook URL should be exactly:</p>
+              <code className="block bg-blue-100 p-2 rounded text-xs mt-2 text-blue-800">
+                https://ehlklfopwpmgkthqmqgd.supabase.co/functions/v1/stripe-webhook
+              </code>
+              <p className="text-blue-700 text-xs mt-2">
+                Required events: checkout.session.completed, customer.subscription.deleted, invoice.payment_failed
               </p>
             </div>
             
-            {settings.timedMode && (
-              <div className="flex items-center space-x-2 text-lg">
-                <Clock className="h-5 w-5 text-orange-600" />
-                <span className={`font-mono font-semibold ${
-                  timeLeft < 60 ? 'text-red-600' : 'text-gray-700'
-                }`}>
-                  {formatTime(timeLeft)}
-                </span>
+            <div className="flex flex-wrap gap-4">
+              <button
+                onClick={async () => {
+                  try {
+                    console.log('🧪 Testing webhook logic...');
+                    setError('Testing webhook...');
+                    
+                   console.log('🔗 Making request to:', `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/test-webhook`);
+                   console.log('🔑 Using auth token:', import.meta.env.VITE_SUPABASE_ANON_KEY ? 'Present' : 'Missing');
+                   console.log('👤 User ID:', user.id);
+                   
+                    const response = await fetch(`${import.meta.env.VITE_SUPABASE_URL}/functions/v1/test-webhook`, {
+                      method: 'POST',
+                      headers: {
+                        'Content-Type': 'application/json',
+                      },
+                      body: JSON.stringify({ userId: user.id })
+                    });
+
+                    console.log('🧪 Test webhook response status:', response.status);
+                    console.log('🧪 Test webhook response headers:', Object.fromEntries(response.headers.entries()));
+                    
+                    const text = await response.text();
+                    console.log('🧪 Test webhook response text:', text);
+                   if (!response.ok) {
+                     console.error('❌ Response not OK:', response.status, response.statusText);
+                     throw new Error(`HTTP ${response.status}: ${response.statusText}`);
+                   }
+                   
+                    
+                    let result;
+                    try {
+                      result = JSON.parse(text);
+                    } catch (parseError) {
+                      console.error('🧪 Failed to parse response as JSON:', parseError);
+                      throw new Error(`Invalid response: ${text}`);
+                    }
+                    
+                    if (result.success) {
+                      console.log('✅ Webhook test successful:', result);
+                      setError('');
+                      alert(`✅ Webhook test successful! ${result.message}`);
+                      await refreshUser();
+                      window.location.reload();
+                    } else {
+                      console.error('❌ Webhook test failed:', result);
+                      setError(`Webhook test failed: ${result.error}`);
+                      alert(`❌ Webhook test failed: ${result.error}`);
+                    }
+                  } catch (error) {
+                    console.error('Test webhook error:', error);
+                    const errorMessage = error instanceof Error ? error.message : 'Unknown error';
+                    console.log('🚨 Showing error to user:', errorMessage);
+                   
+                   // Show error on page instead of alert
+                   setError(`❌ Test failed: ${errorMessage}`);
+                  }
+                }}
+                className="bg-blue-600 text-white px-4 py-2 rounded-lg text-sm hover:bg-blue-700"
+              >
+                Test Webhook Logic
+              </button>
+              
+              <button
+                onClick={async () => {
+                  try {
+                    const response = await fetch('https://ehlklfopwpmgkthqmqgd.supabase.co/functions/v1/stripe-webhook', {
+                      method: 'POST',
+                      headers: {
+                        'Content-Type': 'application/json',
+                      },
+                      body: JSON.stringify({ test: true })
+                    });
+                    
+                    const text = await response.text();
+                    console.log('Webhook response:', text);
+                    
+                   if (!text) {
+                     throw new Error('Empty response from webhook');
+                   }
+                   
+                    if (response.status === 400 && text.includes('Missing signature')) {
+                      alert('✅ Webhook endpoint is reachable! (Expected "Missing signature" error)');
+                    } else {
+                      alert(`Webhook response: ${response.status} - ${text}`);
+                    }
+                  } catch (error) {
+                    console.error('Webhook ping error:', error);
+                    alert(`❌ Webhook endpoint error: ${error.message}`);
+                  }
+                }}
+                className="bg-green-600 text-white px-4 py-2 rounded-lg text-sm hover:bg-green-700"
+              >
+                Ping Webhook Endpoint
+              </button>
+              
+              <button
+                onClick={() => {
+                  console.log('Current user premium status:', user?.is_premium);
+                  console.log('User ID:', user?.id);
+                  alert(`Current status: ${user?.is_premium ? 'Premium' : 'Free'}\nUser ID: ${user?.id}`);
+                }}
+                className="bg-purple-600 text-white px-4 py-2 rounded-lg text-sm hover:bg-purple-700"
+              >
+                Check Current Status
+              </button>
+            </div>
+          </div>
+        </div>
+        
+        {!user.is_premium && (
+          <div className="mb-8 bg-blue-50 border border-blue-200 rounded-2xl p-6 animate-slide-up">
+            <div className="flex items-center justify-between">
+              <div>
+                <h3 className="text-lg font-semibold text-blue-900">Manual Premium Upgrade</h3>
+                <p className="text-blue-700">For testing: manually upgrade to premium status</p>
+              </div>
+              <button
+                onClick={async () => {
+                  try {
+                    const { supabase } = await import('../lib/supabase');
+                    const { error } = await supabase
+                      .from('users')
+                      .update({ is_premium: true })
+                      .eq('id', user.id);
+                    
+                    if (error) {
+                      console.error('Error updating premium status:', error);
+                      alert('Failed to update premium status');
+                    } else {
+                      console.log('✅ Manually updated to premium');
+                      await refreshUser();
+                      window.location.reload();
+                    }
+                  } catch (error) {
+                    console.error('Error:', error);
+                    alert('Failed to update premium status');
+                  }
+                }}
+                className="bg-yellow-600 text-white px-4 py-2 rounded-lg text-sm hover:bg-yellow-700"
+              >
+                Manually Upgrade to Premium
+              </button>
+            </div>
+          </div>
+        )}
+
+        {/* Header */}
+        <div className="mb-8 animate-slide-up">
+          <div className="flex items-center justify-between">
+            <div>
+              <h1 className="text-3xl md:text-4xl font-bold text-gray-900">
+                Welcome back, {user.name || user.email?.split('@')[0]}!
+              </h1>
+              <p className="text-lg text-gray-600 mt-2">
+                Track your progress and continue your SAT Math journey
+              </p>
+            </div>
+            {user.is_premium && (
+              <div className="flex items-center bg-gradient-primary text-white px-4 py-2 rounded-full">
+                <Star className="h-4 w-4 mr-2" />
+                <span className="text-sm font-medium">Premium</span>
               </div>
             )}
-          </div>
-          
-          <div className="mt-4 bg-gray-200 rounded-full h-2">
-            <div 
-              className="bg-teal-600 h-2 rounded-full transition-all duration-300"
-              style={{ width: `${((currentQuestion + 1) / questions.length) * 100}%` }}
-            />
           </div>
         </div>
 
-        {/* Question */}
-        <div className="bg-white rounded-xl shadow-lg p-6 mb-6">
-          <div className="mb-6">
-            <div className="text-lg font-medium text-gray-900 mb-4 font-sans">
-              <MathRenderer>{question.question}</MathRenderer>
+        {/* Quick Stats */}
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
+          <div className="bg-white rounded-2xl p-6 shadow-lg animate-scale-in">
+            <div className="flex items-center justify-between">
+              <div>
+                <p className="text-sm font-medium text-gray-600">Questions Answered</p>
+                <p className="text-2xl font-bold text-gray-900">
+                  {progress?.totalQuestionsAnswered || 0}
+                </p>
+              </div>
+              <div className="w-12 h-12 bg-blue-100 rounded-xl flex items-center justify-center">
+                <Target className="h-6 w-6 text-blue-600" />
+              </div>
             </div>
-            
-            {/* Display question image if available */}
-            {question.imageUrl && question.imageUrl.trim() !== '' && question.imageUrl !== 'null' && (
-              <div className="mb-6">
-                <p className="text-sm text-gray-500 mb-2">Question Image:</p>
-                <img
-                  src={question.imageUrl}
-                  alt="Question diagram"
-                  className="max-w-full h-auto max-h-96 rounded-lg border border-gray-200 shadow-sm mx-auto block"
-                  onError={(e) => {
-                    e.currentTarget.style.display = 'none';
-                  }}
-                />
-              </div>
-            )}
-            
-            {question.questionType === 'multiple_choice' ? (
-              <div className="space-y-3">
-                {question.options.map((option, index) => {
-                  const buttonClass = selectedAnswer === index
-                    ? 'border-teal-600 bg-teal-50 text-teal-700'
-                    : 'border-gray-200 hover:border-gray-300';
-                  
-                  return (
-                    <button
-                      key={index}
-                      onClick={() => handleAnswerSelect(index)}
-                      className={`w-full p-4 text-left rounded-lg border-2 transition-all ${buttonClass} cursor-pointer`}
-                    >
-                      <div className="flex items-start space-x-3">
-                        <span className="font-medium">
-                          {String.fromCharCode(65 + index)}.
-                        </span>
-                        <div className="flex-1">
-                          {(option.startsWith('http') || option.startsWith('https://')) && 
-                           (option.includes('.jpg') || option.includes('.png') || option.includes('.gif') || 
-                            option.includes('.svg') || option.includes('.jpeg') || option.includes('.webp') || 
-                            option.includes('supabase') || option.includes('storage')) ? (
-                            <img
-                              src={option}
-                              alt="Option"
-                              className="max-w-full h-auto max-h-48 rounded border border-gray-300 shadow-sm"
-                              onError={(e) => {
-                                e.currentTarget.outerHTML = `<div class="text-red-500 text-sm">Image failed to load</div>`;
-                              }}
-                            />
-                          ) : (
-                            <MathRenderer inline>{option}</MathRenderer>
-                          )}
-                        </div>
-                      </div>
-                    </button>
-                  );
-                })}
-              </div>
-            ) : (
-              <div className="space-y-4">
-                <label className="block text-sm font-medium text-gray-700 mb-2">
-                  Enter your numeric answer:
-                </label>
-                <input
-                  type="text"
-                  value={openEndedAnswer}
-                  onChange={(e) => handleOpenEndedAnswer(e.target.value)}
-                  className="w-full p-4 border-2 border-gray-200 rounded-lg focus:border-teal-600 focus:outline-none text-center text-lg font-medium"
-                  placeholder="Enter number (e.g., 42, 3.14, -5)"
-                />
-              </div>
-            )}
           </div>
 
-          {/* Explanation Section */}
-          {((question.questionType === 'multiple_choice' && selectedAnswer !== null) || 
-           (question.questionType === 'open_ended' && openEndedAnswer.trim() !== '')) && (
-            <div className="border-t pt-4">
-              <button
-                onClick={() => setShowExplanation(!showExplanation)}
-                className="text-teal-600 hover:text-teal-700 font-medium mb-3"
-              >
-                {showExplanation ? 'Hide Answer' : 'Check Answer'}
-              </button>
-              
-              {showExplanation && (
+          <div className="bg-white rounded-2xl p-6 shadow-lg animate-scale-in" style={{ animationDelay: '0.1s' }}>
+            <div className="flex items-center justify-between">
+              <div>
+                <p className="text-sm font-medium text-gray-600">Accuracy</p>
+                <p className="text-2xl font-bold text-gray-900">
+                  {getAccuracyPercentage()}%
+                </p>
+              </div>
+              <div className="w-12 h-12 bg-green-100 rounded-xl flex items-center justify-center">
+                <TrendingUp className="h-6 w-6 text-green-600" />
+              </div>
+            </div>
+          </div>
+
+          <div className="bg-white rounded-2xl p-6 shadow-lg animate-scale-in" style={{ animationDelay: '0.2s' }}>
+            <div className="flex items-center justify-between">
+              <div>
+                <p className="text-sm font-medium text-gray-600">Study Time</p>
+                <p className="text-2xl font-bold text-gray-900">
+                  {formatTime(progress?.totalTimeSpentSeconds || 0)}
+                </p>
+              </div>
+              <div className="w-12 h-12 bg-purple-100 rounded-xl flex items-center justify-center">
+                <Clock className="h-6 w-6 text-purple-600" />
+              </div>
+            </div>
+          </div>
+
+          <div className="bg-white rounded-2xl p-6 shadow-lg animate-scale-in" style={{ animationDelay: '0.3s' }}>
+            <div className="flex items-center justify-between">
+              <div>
+                <p className="text-sm font-medium text-gray-600">Current Streak</p>
+                <p className="text-2xl font-bold text-gray-900">
+                  {progress?.currentStreak || 0} days
+                </p>
+              </div>
+              <div className="w-12 h-12 bg-orange-100 rounded-xl flex items-center justify-center">
+                <Award className="h-6 w-6 text-orange-600" />
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
+          {/* Topic Mastery */}
+          <div className="lg:col-span-2">
+            <div className="bg-white rounded-2xl p-6 shadow-lg animate-scale-in" style={{ animationDelay: '0.4s' }}>
+              <div className="flex items-center justify-between mb-6">
+                <h2 className="text-xl font-bold text-gray-900 flex items-center">
+                  <BarChart3 className="h-6 w-6 mr-3 text-blue-600" />
+                  Topic Mastery
+                </h2>
+                <Link 
+                  to="/practice" 
+                  className="text-blue-600 hover:text-blue-700 text-sm font-medium"
+                >
+                  Practice More →
+                </Link>
+              </div>
+
+              {topicMastery.length > 0 ? (
                 <div className="space-y-4">
-                  {/* Answer Status */}
-                  <div className={`p-4 rounded-lg ${
-                    isAnswerCorrect(currentQuestion)
-                      ? 'bg-green-50 border border-green-200'
-                      : 'bg-red-50 border border-red-200'
-                  }`}>
-                    <div className="flex items-center mb-2">
-                      {isAnswerCorrect(currentQuestion) ? (
-                        <Check className="h-5 w-5 text-green-600 mr-2" />
-                      ) : (
-                        <X className="h-5 w-5 text-red-600 mr-2" />
-                      )}
-                      <span className="font-semibold">
-                        {isAnswerCorrect(currentQuestion) ? 'Correct!' : 'Incorrect'}
-                      </span>
+                  {topicMastery.map((topic, index) => (
+                    <div key={topic.topic} className="animate-slide-up" style={{ animationDelay: `${0.1 * index}s` }}>
+                      <div className="flex items-center justify-between mb-2">
+                        <span className="text-sm font-medium text-gray-700">{topic.topic}</span>
+                        <span className="text-sm font-bold text-gray-900">{topic.masteryPercentage}%</span>
+                      </div>
+                      <div className="w-full bg-gray-200 rounded-full h-3">
+                        <div 
+                          className="progress-bar h-3 rounded-full transition-all duration-1000"
+                          style={{ width: `${topic.masteryPercentage}%` }}
+                        />
+                      </div>
                     </div>
-                    
-                    {/* Show correct answer for incorrect responses */}
-                    {!isAnswerCorrect(currentQuestion) && (
-                      <p className="text-sm text-gray-700 mt-2">
-                        <strong>Correct answer:</strong> {question.questionType === 'multiple_choice' 
-                          ? `${String.fromCharCode(65 + question.correctAnswer)} - ${question.options[question.correctAnswer]}`
-                          : question.correctAnswerText}
-                      </p>
-                    )}
-                  </div>
-                  
-                  {/* Explanation */}
-                  {question.explanation && (
-                    <div className="p-4 rounded-lg bg-blue-50 border border-blue-200">
-                      <h4 className="font-semibold text-blue-900 mb-2">Explanation:</h4>
-                      <p className="text-blue-800">
-                        <MathRenderer>{question.explanation}</MathRenderer>
-                      </p>
-                    </div>
-                  )}
+                  ))}
+                </div>
+              ) : (
+                <div className="text-center py-8">
+                  <BookOpen className="h-12 w-12 text-gray-400 mx-auto mb-4" />
+                  <p className="text-gray-600">Start practicing to see your topic mastery!</p>
+                  <Link 
+                    to="/practice" 
+                    className="inline-flex items-center mt-4 text-blue-600 hover:text-blue-700 font-medium"
+                  >
+                    Begin Practice <ArrowRight className="h-4 w-4 ml-1" />
+                  </Link>
                 </div>
               )}
             </div>
-          )}
+          </div>
+
+          {/* Recent Sessions */}
+          <div>
+            <div className="bg-white rounded-2xl p-6 shadow-lg animate-scale-in" style={{ animationDelay: '0.5s' }}>
+              <h2 className="text-xl font-bold text-gray-900 mb-6 flex items-center">
+                <Calendar className="h-6 w-6 mr-3 text-green-600" />
+                Recent Sessions
+              </h2>
+
+              {recentSessions.length > 0 ? (
+                <div className="space-y-4">
+                  {recentSessions.map((session, index) => (
+                    <div 
+                      key={session.id} 
+                      className="border border-gray-200 rounded-xl p-4 hover:bg-gray-50 transition-colors animate-slide-up"
+                      style={{ animationDelay: `${0.1 * index}s` }}
+                    >
+                      <div className="flex items-center justify-between mb-2">
+                        <span className="font-medium text-gray-900">{session.topic}</span>
+                        <span className="text-xs text-gray-500">{formatDate(session.date)}</span>
+                      </div>
+                      <div className="flex items-center justify-between text-sm">
+                        <span className="text-gray-600">
+                          {session.score}/{session.total} correct
+                        </span>
+                        <span className="text-gray-600">
+                          {formatTime(session.timeSpent)}
+                        </span>
+                      </div>
+                      <div className="mt-2 w-full bg-gray-200 rounded-full h-2">
+                        <div 
+                          className="bg-gradient-primary h-2 rounded-full transition-all duration-500"
+                          style={{ width: `${(session.score / session.total) * 100}%` }}
+                        />
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              ) : (
+                <div className="text-center py-8">
+                  <Clock className="h-12 w-12 text-gray-400 mx-auto mb-4" />
+                  <p className="text-gray-600 mb-4">No practice sessions yet</p>
+                  <Link 
+                    to="/practice" 
+                    className="inline-flex items-center text-blue-600 hover:text-blue-700 font-medium"
+                  >
+                    Start Your First Session <ArrowRight className="h-4 w-4 ml-1" />
+                  </Link>
+                </div>
+              )}
+            </div>
+          </div>
         </div>
 
-        {/* Navigation */}
-        <div className="flex justify-between items-center">
-          <button
-            onClick={handlePrevious}
-            disabled={currentQuestion === 0}
-            className={`flex items-center space-x-2 px-4 py-2 rounded-lg font-medium transition-colors ${
-              currentQuestion === 0
-                ? 'bg-gray-200 text-gray-400 cursor-not-allowed'
-                : 'bg-gray-600 text-white hover:bg-gray-700'
-            }`}
+        {/* Quick Actions */}
+        <div className="mt-8 grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+          <Link
+            to="/practice"
+            className="group bg-gradient-primary text-white rounded-2xl p-6 hover:shadow-xl transition-all duration-300 card-hover animate-scale-in"
+            style={{ animationDelay: '0.6s' }}
           >
-            <ArrowLeft className="h-4 w-4" />
-            <span>Previous</span>
-          </button>
+            <div className="flex items-center justify-between">
+              <div>
+                <h3 className="text-lg font-bold mb-2">Start Practice</h3>
+                <p className="text-white/80 text-sm">Begin a new practice session</p>
+              </div>
+              <Zap className="h-8 w-8 group-hover:animate-bounce" />
+            </div>
+          </Link>
 
-          {currentQuestion === questions.length - 1 ? (
-            <button
-              onClick={handleComplete}
-              className="bg-green-600 text-white px-6 py-2 rounded-lg font-medium hover:bg-green-700 transition-colors"
+          <Link
+            to="/learn"
+            className="group bg-white border border-gray-200 rounded-2xl p-6 hover:shadow-xl transition-all duration-300 card-hover animate-scale-in"
+            style={{ animationDelay: '0.7s' }}
+          >
+            <div className="flex items-center justify-between">
+              <div>
+                <h3 className="text-lg font-bold text-gray-900 mb-2">Learn Concepts</h3>
+                <p className="text-gray-600 text-sm">Review math concepts and strategies</p>
+              </div>
+              <BookOpen className="h-8 w-8 text-blue-600 group-hover:scale-110 transition-transform" />
+            </div>
+          </Link>
+
+          {!user.is_premium && (
+            <Link
+              to="/upgrade"
+              className="group bg-gradient-warm text-white rounded-2xl p-6 hover:shadow-xl transition-all duration-300 card-hover animate-scale-in"
+              style={{ animationDelay: '0.8s' }}
             >
-              Complete Practice
-            </button>
-          ) : (
-            <button
-              onClick={handleNext}
-              className="flex items-center space-x-2 bg-teal-600 text-white px-4 py-2 rounded-lg font-medium hover:bg-teal-700 transition-colors"
-            >
-              <span>Next</span>
-              <ArrowRight className="h-4 w-4" />
-            </button>
+              <div className="flex items-center justify-between">
+                <div>
+                  <h3 className="text-lg font-bold mb-2">Upgrade to Premium</h3>
+                  <p className="text-white/80 text-sm">Unlock all 300 questions</p>
+                </div>
+                <Star className="h-8 w-8 group-hover:animate-pulse" />
+              </div>
+            </Link>
           )}
         </div>
       </div>
@@ -745,4 +594,4 @@ const QuestionGenerator = () => {
   );
 };
 
-export default QuestionGenerator;
+export default Dashboard;
