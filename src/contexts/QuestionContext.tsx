@@ -415,12 +415,14 @@ const QuestionGenerator = () => {
 
   const handleStartReview = () => {
     console.log('🔍 Starting review mode...');
+    setIsReviewMode(true);
   };
 
   const handleExitReview = () => {
     console.log('🚪 Exiting review mode...');
     setIsReviewMode(false);
   };
+  
   const savePracticeSessionToDb = async () => {
     try {
       const correctAnswers = questions.filter((question, index) => {
@@ -430,11 +432,9 @@ const QuestionGenerator = () => {
           return openEndedAnswers[index] === question.correctAnswerText;
         }
       });
-
-      const timeSpent = settings.timedMode 
-        ? initialTotalTime - timeLeft
-        : 0;
-
+      
+      const timeSpent = settings.timedMode ? initialTotalTime - timeLeft : 0;
+      
       await savePracticeSession({
         topic: settings.topic === 'Mixed' ? 'Mixed Skills' : settings.topic,
         difficulty: settings.difficulty,
