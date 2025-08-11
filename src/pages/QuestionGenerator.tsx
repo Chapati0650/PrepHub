@@ -415,14 +415,12 @@ const QuestionGenerator = () => {
 
   const handleStartReview = () => {
     setIsReviewMode(true);
-  };
 
   const handleExitReview = () => {
     setIsReviewMode(false);
   };
 
   const savePracticeSessionToDb = async () => {
-    try {
       const timeSpent = settings.timedMode ? initialTotalTime - timeLeft : 0;
       
       const correctAnswers = questions.filter((question, index) => {
