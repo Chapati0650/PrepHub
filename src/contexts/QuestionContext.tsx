@@ -423,14 +423,6 @@ const QuestionGenerator = () => {
   };
   const savePracticeSessionToDb = async () => {
       const correctAnswers = questions.filter((question, index) => {
-
-      // Exclude already solved questions
-      if (excludedQuestionIds.length > 0) {
-        questionsQuery = questionsQuery.not('id', 'in', excludedQuestionIds);
-      }
-
-      const { data: questions, error } = await questionsQuery
-        .limit(Math.min(count, totalCount || 0));
         if (question.questionType === 'multiple_choice') {
           return answers[index] === question.correctAnswer;
         } else {
