@@ -169,7 +169,7 @@ export const QuestionProvider: React.FC<{ children: ReactNode }> = ({ children }
 
       console.log('📊 Fetching user progress for:', user.id);
 
-      // Get progress from user_progress table
+      // Get progress from user_progress table with fresh data
       const { data, error } = await supabase
         .from('user_progress')
         .select('*')
@@ -178,16 +178,17 @@ export const QuestionProvider: React.FC<{ children: ReactNode }> = ({ children }
 
       if (error && error.code !== 'PGRST116') {
         console.error('❌ Error fetching user progress:', error);
-        throw error;
+        // Don't throw error, fall back to calculating from attempts
+        console.log('📊 Falling back to calculating from attempts...');
       }
 
-      // If no progress record exists, calculate from question attempts
+      // If no progress record exists or error occurred, calculate from question attempts
       if (!data) {
         console.log('📊 No progress record found, calculating from attempts...');
         
         const { data: attempts, error: attemptsError } = await supabase
           .from('user_question_attempts')
-          .select('is_correct')
+          .select('is_correct, attempted_at')
           .eq('user_id', user.id);
 
         if (attemptsError) {
@@ -202,10 +203,14 @@ export const QuestionProvider: React.FC<{ children: ReactNode }> = ({ children }
         }
 
         const correctAnswers = attempts?.filter(a => a.is_correct).length || 0;
+        const lastAttempt = attempts?.length > 0 
+          ? attempts.sort((a, b) => new Date(b.attempted_at).getTime() - new Date(a.attempted_at).getTime())[0]
+          : null;
         
         console.log('📊 Calculated progress from attempts:', {
           totalAttempts: attempts?.length || 0,
-          correctAnswers
+          correctAnswers,
+          lastAttempt: lastAttempt?.attempted_at
         });
 
         return {
@@ -213,7 +218,7 @@ export const QuestionProvider: React.FC<{ children: ReactNode }> = ({ children }
           totalCorrectAnswers: correctAnswers,
           totalTimeSpentSeconds: 0,
           currentStreak: 0,
-          lastPracticeDate: null
+          lastPracticeDate: lastAttempt ? new Date(lastAttempt.attempted_at).toISOString().split('T')[0] : null
         };
       }
 

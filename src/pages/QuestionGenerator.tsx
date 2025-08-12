@@ -468,6 +468,10 @@ const QuestionGenerator = () => {
       });
 
       console.log('✅ Practice session saved successfully');
+      
+      // Add a small delay to ensure database updates are processed
+      await new Promise(resolve => setTimeout(resolve, 1000));
+      console.log('✅ Practice session processing complete');
     } catch (error) {
       console.error('Failed to save practice session:', error);
     }

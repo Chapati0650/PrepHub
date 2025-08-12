@@ -40,6 +40,7 @@ const Dashboard = () => {
   const [recentSessions, setRecentSessions] = useState<RecentSession[]>([]);
   const [totalQuestionsAvailable, setTotalQuestionsAvailable] = useState<number>(0);
   const [loading, setLoading] = useState(true);
+  const [lastRefresh, setLastRefresh] = useState<number>(Date.now());
 
   useEffect(() => {
     if (authLoading) return;
@@ -70,6 +71,35 @@ const Dashboard = () => {
 
     loadDashboardData();
   }, [user, authLoading, navigate, getUserProgress, getRecentSessions, getQuestionsCount]);
+
+  // Add effect to refresh data when returning from practice
+  useEffect(() => {
+    const handleVisibilityChange = () => {
+      if (!document.hidden && user) {
+        console.log('🔄 Page became visible, refreshing dashboard data...');
+        const loadDashboardData = async () => {
+          try {
+            const [progress, sessions, questionsCount] = await Promise.all([
+              getUserProgress(),
+              getRecentSessions(),
+              getQuestionsCount()
+            ]);
+            
+            setUserProgress(progress);
+            setRecentSessions(sessions);
+            setTotalQuestionsAvailable(questionsCount);
+            setLastRefresh(Date.now());
+          } catch (error) {
+            console.error('Error refreshing dashboard data:', error);
+          }
+        };
+        loadDashboardData();
+      }
+    };
+
+    document.addEventListener('visibilitychange', handleVisibilityChange);
+    return () => document.removeEventListener('visibilitychange', handleVisibilityChange);
+  }, [user, getUserProgress, getRecentSessions, getQuestionsCount]);
 
   if (authLoading || loading) {
     return (
