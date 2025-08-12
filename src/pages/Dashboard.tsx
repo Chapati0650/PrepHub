@@ -77,6 +77,8 @@ const Dashboard = () => {
     const handleVisibilityChange = () => {
       if (!document.hidden && user) {
         console.log('🔄 Page became visible, refreshing dashboard data...');
+        // Add a small delay to ensure any database updates have completed
+        setTimeout(() => {
         const loadDashboardData = async () => {
           try {
             const [progress, sessions, questionsCount] = await Promise.all([
@@ -94,6 +96,7 @@ const Dashboard = () => {
           }
         };
         loadDashboardData();
+        }, 1000); // Wait 1 second for database updates to complete
       }
     };
 
@@ -286,6 +289,38 @@ const Dashboard = () => {
         {/* Quick Actions */}
         <div className="mt-12 text-center">
           <h2 className="text-2xl font-bold text-gray-900 mb-8">Quick Actions</h2>
+          
+          {/* Manual Refresh Button for debugging */}
+          <div className="mb-6">
+            <button
+              onClick={async () => {
+                console.log('🔄 Manual refresh triggered...');
+                setLoading(true);
+                try {
+                  const [progress, sessions, questionsCount] = await Promise.all([
+                    getUserProgress(),
+                    getRecentSessions(),
+                    getQuestionsCount()
+                  ]);
+                  
+                  setUserProgress(progress);
+                  setRecentSessions(sessions);
+                  setTotalQuestionsAvailable(questionsCount);
+                  setLastRefresh(Date.now());
+                  console.log('✅ Manual refresh complete');
+                } catch (error) {
+                  console.error('❌ Manual refresh failed:', error);
+                } finally {
+                  setLoading(false);
+                }
+              }}
+              className="bg-gray-500 text-white px-4 py-2 rounded-lg font-medium hover:bg-gray-600 transition-colors text-sm"
+            >
+              🔄 Refresh Data
+            </button>
+            <p className="text-xs text-gray-500 mt-1">Last updated: {new Date(lastRefresh).toLocaleTimeString()}</p>
+          </div>
+          
           <div className="flex flex-col sm:flex-row gap-4 justify-center">
             <button
               onClick={() => navigate('/practice')}

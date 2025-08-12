@@ -169,7 +169,21 @@ export const QuestionProvider: React.FC<{ children: ReactNode }> = ({ children }
 
       console.log('📊 Fetching user progress for:', user.id);
 
-      // Get progress from user_progress table with fresh data
+      // First, get the count of correct question attempts directly
+      const { data: correctAttempts, error: attemptsError } = await supabase
+        .from('user_question_attempts')
+        .select('question_id')
+        .eq('user_id', user.id)
+        .eq('is_correct', true);
+
+      if (attemptsError) {
+        console.error('❌ Error fetching correct attempts:', attemptsError);
+      }
+
+      const correctAttemptsCount = correctAttempts?.length || 0;
+      console.log('📊 Direct count of correct attempts:', correctAttemptsCount);
+
+      // Get progress from user_progress table
       const { data, error } = await supabase
         .from('user_progress')
         .select('*')
@@ -178,52 +192,33 @@ export const QuestionProvider: React.FC<{ children: ReactNode }> = ({ children }
 
       if (error && error.code !== 'PGRST116') {
         console.error('❌ Error fetching user progress:', error);
-        // Don't throw error, fall back to calculating from attempts
-        console.log('📊 Falling back to calculating from attempts...');
       }
 
-      // If no progress record exists or error occurred, calculate from question attempts
+      // If no progress record exists, return calculated values
       if (!data) {
-        console.log('📊 No progress record found, calculating from attempts...');
-        
-        const { data: attempts, error: attemptsError } = await supabase
-          .from('user_question_attempts')
-          .select('is_correct, attempted_at')
-          .eq('user_id', user.id);
-
-        if (attemptsError) {
-          console.error('❌ Error fetching attempts:', attemptsError);
-          return {
-            totalQuestionsAnswered: 0,
-            totalCorrectAnswers: 0,
-            totalTimeSpentSeconds: 0,
-            currentStreak: 0,
-            lastPracticeDate: null
-          };
-        }
-
-        const correctAnswers = attempts?.filter(a => a.is_correct).length || 0;
-        const lastAttempt = attempts?.length > 0 
-          ? attempts.sort((a, b) => new Date(b.attempted_at).getTime() - new Date(a.attempted_at).getTime())[0]
-          : null;
-        
-        console.log('📊 Calculated progress from attempts:', {
-          totalAttempts: attempts?.length || 0,
-          correctAnswers,
-          lastAttempt: lastAttempt?.attempted_at
-        });
+        console.log('📊 No progress record found, using direct count');
 
         return {
-          totalQuestionsAnswered: correctAnswers, // Only correct answers count as "answered"
-          totalCorrectAnswers: correctAnswers,
+          totalQuestionsAnswered: correctAttemptsCount,
+          totalCorrectAnswers: correctAttemptsCount,
           totalTimeSpentSeconds: 0,
           currentStreak: 0,
-          lastPracticeDate: lastAttempt ? new Date(lastAttempt.attempted_at).toISOString().split('T')[0] : null
+          lastPracticeDate: null
         };
       }
 
       console.log('📊 User progress found:', data);
-      return data;
+      
+      // Use the direct count if it's higher than what's in the progress table
+      // This handles cases where the trigger might not have fired
+      const finalProgress = {
+        ...data,
+        totalQuestionsAnswered: Math.max(data.total_questions_answered || 0, correctAttemptsCount),
+        totalCorrectAnswers: Math.max(data.total_correct_answers || 0, correctAttemptsCount)
+      };
+      
+      console.log('📊 Final progress with direct count:', finalProgress);
+      return finalProgress;
     } catch (error) {
       console.error('Error getting user progress:', error);
       throw error;
