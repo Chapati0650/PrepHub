@@ -424,6 +424,8 @@ const QuestionGenerator = () => {
 
   const savePracticeSessionToDb = async () => {
     try {
+      console.log('💾 Saving practice session...');
+      
       const timeSpent = settings.timedMode ? initialTotalTime - timeLeft : 0;
       
       const correctAnswers = questions.filter((question, index) => {
@@ -434,6 +436,12 @@ const QuestionGenerator = () => {
         }
       });
 
+      console.log('📊 Session stats:', {
+        totalQuestions: questions.length,
+        correctAnswers: correctAnswers.length,
+        timeSpent
+      });
+
       // Record individual question attempts
       for (let i = 0; i < questions.length; i++) {
         const question = questions[i];
@@ -442,6 +450,7 @@ const QuestionGenerator = () => {
           : openEndedAnswers[i] === question.correctAnswerText;
         
         try {
+          console.log(`📝 Recording attempt for question ${i + 1}:`, { questionId: question.id, isCorrect });
           await recordQuestionAttempt(question.id, isCorrect);
         } catch (error) {
           console.error(`Failed to record attempt for question ${question.id}:`, error);
@@ -449,6 +458,7 @@ const QuestionGenerator = () => {
         }
       }
 
+      console.log('💾 Saving practice session to database...');
       await savePracticeSession({
         topic: settings.topic === 'Mixed' ? 'Mixed Skills' : settings.topic,
         difficulty: settings.difficulty,
@@ -456,6 +466,8 @@ const QuestionGenerator = () => {
         correctAnswers: correctAnswers.length,
         timeSpentSeconds: timeSpent
       });
+
+      console.log('✅ Practice session saved successfully');
     } catch (error) {
       console.error('Failed to save practice session:', error);
     }

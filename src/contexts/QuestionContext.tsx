@@ -138,6 +138,8 @@ export const QuestionProvider: React.FC<{ children: ReactNode }> = ({ children }
       const { data: { user } } = await supabase.auth.getUser();
       if (!user) throw new Error('User not authenticated');
 
+      console.log('📝 Recording question attempt:', { questionId, isCorrect, userId: user.id });
+
       const { error } = await supabase
         .from('user_question_attempts')
         .upsert({
@@ -148,7 +150,12 @@ export const QuestionProvider: React.FC<{ children: ReactNode }> = ({ children }
           onConflict: 'user_id,question_id'
         });
 
-      if (error) throw error;
+      if (error) {
+        console.error('❌ Error recording question attempt:', error);
+        throw error;
+      }
+
+      console.log('✅ Question attempt recorded successfully');
     } catch (error) {
       console.error('Error recording question attempt:', error);
       throw error;
@@ -160,13 +167,57 @@ export const QuestionProvider: React.FC<{ children: ReactNode }> = ({ children }
       const { data: { user } } = await supabase.auth.getUser();
       if (!user) throw new Error('User not authenticated');
 
+      console.log('📊 Fetching user progress for:', user.id);
+
+      // Get progress from user_progress table
       const { data, error } = await supabase
         .from('user_progress')
         .select('*')
         .eq('user_id', user.id)
         .single();
 
-      if (error && error.code !== 'PGRST116') throw error;
+      if (error && error.code !== 'PGRST116') {
+        console.error('❌ Error fetching user progress:', error);
+        throw error;
+      }
+
+      // If no progress record exists, calculate from question attempts
+      if (!data) {
+        console.log('📊 No progress record found, calculating from attempts...');
+        
+        const { data: attempts, error: attemptsError } = await supabase
+          .from('user_question_attempts')
+          .select('is_correct')
+          .eq('user_id', user.id);
+
+        if (attemptsError) {
+          console.error('❌ Error fetching attempts:', attemptsError);
+          return {
+            totalQuestionsAnswered: 0,
+            totalCorrectAnswers: 0,
+            totalTimeSpentSeconds: 0,
+            currentStreak: 0,
+            lastPracticeDate: null
+          };
+        }
+
+        const correctAnswers = attempts?.filter(a => a.is_correct).length || 0;
+        
+        console.log('📊 Calculated progress from attempts:', {
+          totalAttempts: attempts?.length || 0,
+          correctAnswers
+        });
+
+        return {
+          totalQuestionsAnswered: correctAnswers, // Only correct answers count as "answered"
+          totalCorrectAnswers: correctAnswers,
+          totalTimeSpentSeconds: 0,
+          currentStreak: 0,
+          lastPracticeDate: null
+        };
+      }
+
+      console.log('📊 User progress found:', data);
       return data;
     } catch (error) {
       console.error('Error getting user progress:', error);
