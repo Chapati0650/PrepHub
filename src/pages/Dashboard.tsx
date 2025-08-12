@@ -127,7 +127,7 @@ const Dashboard = () => {
                 <Target className="h-6 w-6 text-blue-600" />
               </div>
               <div className="ml-4">
-                <p className="text-sm font-medium text-gray-600">Questions Answered</p>
+                <p className="text-sm font-medium text-gray-600">Questions Mastered</p>
                 <p className="text-2xl font-bold text-gray-900">{userProgress?.totalQuestionsAnswered || 0}</p>
               </div>
             </div>
@@ -174,7 +174,7 @@ const Dashboard = () => {
 
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
           {/* Questions Progress */}
-          <div className="bg-white rounded-xl shadow-sm p-6 border border-gray-100">
+          <div className="bg-white rounded-xl shadow-sm p-6 border border-gray-100 animate-scale-in">
             <div className="flex items-center mb-6">
               <Target className="h-6 w-6 text-blue-600 mr-3" />
               <h2 className="text-xl font-bold text-gray-900">Questions Progress</h2>
@@ -182,11 +182,11 @@ const Dashboard = () => {
             
             <div className="space-y-6">
               <div className="flex justify-between items-center">
-                <span className="text-sm font-medium text-gray-700">Questions Completed</span>
+                <span className="text-sm font-medium text-gray-700">Questions Mastered</span>
                 <span className="text-lg font-bold text-gray-900">{userProgress?.totalQuestionsAnswered || 0}</span>
               </div>
               <div className="flex justify-between items-center">
-                <span className="text-sm font-medium text-gray-700">Questions Remaining</span>
+                <span className="text-sm font-medium text-gray-700">Questions Left to Master</span>
                 <span className="text-lg font-bold text-gray-900">
                   {Math.max(0, totalQuestionsAvailable - (userProgress?.totalQuestionsAnswered || 0))}
                 </span>
@@ -194,6 +194,20 @@ const Dashboard = () => {
               <div className="flex justify-between items-center">
                 <span className="text-sm font-medium text-gray-700">Total Available</span>
                 <span className="text-lg font-bold text-gray-900">{totalQuestionsAvailable}</span>
+              </div>
+              
+              {/* Progress Bar */}
+              <div className="mt-4">
+                <div className="flex justify-between text-sm text-gray-600 mb-2">
+                  <span>Progress</span>
+                  <span>{Math.round(((userProgress?.totalQuestionsAnswered || 0) / Math.max(1, totalQuestionsAvailable)) * 100)}%</span>
+                </div>
+                <div className="w-full bg-gray-200 rounded-full h-3">
+                  <div 
+                    className="bg-gradient-primary h-3 rounded-full transition-all duration-500 progress-bar"
+                    style={{ width: `${Math.min(100, ((userProgress?.totalQuestionsAnswered || 0) / Math.max(1, totalQuestionsAvailable)) * 100)}%` }}
+                  />
+                </div>
               </div>
             </div>
           </div>

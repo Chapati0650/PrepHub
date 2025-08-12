@@ -40,19 +40,19 @@ export const QuestionProvider: React.FC<{ children: ReactNode }> = ({ children }
       const { data: { user } } = await supabase.auth.getUser();
       if (!user) throw new Error('User not authenticated');
 
-      // Get solved question IDs first
-      const { data: solvedQuestions, error: solvedError } = await supabase
+      // Get correctly answered question IDs (only these are considered "completed")
+      const { data: completedQuestions, error: completedError } = await supabase
         .from('user_question_attempts')
         .select('question_id')
         .eq('user_id', user.id)
         .eq('is_correct', true);
 
-      if (solvedError) {
-        console.error('Error fetching solved questions:', solvedError);
-        throw solvedError;
+      if (completedError) {
+        console.error('Error fetching completed questions:', completedError);
+        throw completedError;
       }
 
-      const solvedQuestionIds = solvedQuestions?.map(sq => sq.question_id) || [];
+      const completedQuestionIds = completedQuestions?.map(cq => cq.question_id) || [];
 
       let query = supabase
         .from('questions')
@@ -65,11 +65,12 @@ export const QuestionProvider: React.FC<{ children: ReactNode }> = ({ children }
 
       query = query.eq('difficulty', settings.difficulty);
 
-      // Only add not.in filter if there are solved questions
-      if (solvedQuestionIds.length > 0) {
-        query = query.not('id', 'in', `(${solvedQuestionIds.join(',')})`);
+      // Only add not.in filter if there are completed questions
+      if (completedQuestionIds.length > 0) {
+        query = query.not('id', 'in', `(${completedQuestionIds.join(',')})`);
       }
 
+      // Order by question_number for sequential presentation
       const { data: questions, error } = await query
         .order('question_number', { ascending: true })
         .limit(settings.questionCount);
@@ -80,12 +81,12 @@ export const QuestionProvider: React.FC<{ children: ReactNode }> = ({ children }
       }
 
       if (!questions || questions.length === 0) {
-        throw new Error('No questions available for the selected criteria');
+        // If no new questions available, user has completed all questions for this topic/difficulty
+        throw new Error('Congratulations! You have completed all available questions for this topic and difficulty level.');
       }
 
-      // Shuffle and limit to requested count
-      const shuffled = questions.sort(() => Math.random() - 0.5);
-      const selected = shuffled.slice(0, settings.questionCount);
+      // Take questions in sequential order (already ordered by question_number)
+      const selected = questions.slice(0, settings.questionCount);
 
       return selected.map(q => ({
         id: q.id,
