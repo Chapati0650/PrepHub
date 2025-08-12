@@ -195,16 +195,16 @@ export const QuestionProvider: React.FC<{ children: ReactNode }> = ({ children }
 
   const getQuestionsCount = async () => {
     try {
-      const { data, error } = await supabase
+      const { count, error } = await supabase
         .from('questions')
-        .select('topic, difficulty, count(*)')
+        .select('*', { count: 'exact', head: true })
         .eq('is_active', true);
 
       if (error) throw error;
-      return data;
+      return count || 0;
     } catch (error) {
       console.error('Error getting questions count:', error);
-      throw error;
+      return 0;
     }
   };
 

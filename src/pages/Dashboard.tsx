@@ -188,7 +188,7 @@ const Dashboard = () => {
               <div className="flex justify-between items-center">
                 <span className="text-sm font-medium text-gray-700">Questions Remaining</span>
                 <span className="text-lg font-bold text-gray-900">
-                  {totalQuestionsAvailable - (userProgress?.totalQuestionsAnswered || 0)}
+                  {Math.max(0, totalQuestionsAvailable - (userProgress?.totalQuestionsAnswered || 0))}
                 </span>
               </div>
               <div className="flex justify-between items-center">
