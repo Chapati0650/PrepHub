@@ -14,6 +14,7 @@ interface QuestionData {
   explanation: string;
   topic: string;
   difficulty: string;
+  imageUrl?: string;
 }
 
 // Separate Review Component
@@ -297,7 +298,7 @@ const ReviewMode = ({
 const QuestionGenerator = () => {
   const location = useLocation();
   const navigate = useNavigate();
-  const { generateQuestions, savePracticeSession } = useQuestions();
+  const { generateQuestions, savePracticeSession, recordQuestionAttempt } = useQuestions();
   const [questions, setQuestions] = useState<QuestionData[]>([]);
   const [currentQuestion, setCurrentQuestion] = useState(0);
   const [selectedAnswer, setSelectedAnswer] = useState<number | null>(null);
@@ -422,6 +423,7 @@ const QuestionGenerator = () => {
   };
 
   const savePracticeSessionToDb = async () => {
+    try {
       const timeSpent = settings.timedMode ? initialTotalTime - timeLeft : 0;
       
       const correctAnswers = questions.filter((question, index) => {
