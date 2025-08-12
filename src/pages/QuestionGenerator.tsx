@@ -415,6 +415,7 @@ const QuestionGenerator = () => {
 
   const handleStartReview = () => {
     setIsReviewMode(true);
+  };
 
   const handleExitReview = () => {
     setIsReviewMode(false);
