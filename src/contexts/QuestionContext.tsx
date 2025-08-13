@@ -263,7 +263,9 @@ export const QuestionProvider: React.FC<{ children: ReactNode }> = ({ children }
   const isAdmin = async () => {
     try {
       const { data: { user } } = await supabase.auth.getUser();
-      return user?.email === 'rptestprepservices@gmail.com';
+      const isAdminUser = user?.email === 'rptestprepservices@gmail.com';
+      console.log('🔐 Admin check:', { email: user?.email, isAdmin: isAdminUser });
+      return isAdminUser;
     } catch (error) {
       console.error('Error checking admin status:', error);
       return false;

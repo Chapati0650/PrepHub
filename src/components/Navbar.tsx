@@ -2,12 +2,10 @@ import React from 'react';
 import { Link, useLocation, useNavigate } from 'react-router-dom';
 import { User, LogOut, Menu, X, AlertTriangle } from 'lucide-react';
 import { useAuth } from '../contexts/AuthContext';
-import { useQuestions } from '../contexts/QuestionContext';
 import PrepHubLogo from './PrepHubLogo';
 
 const Navbar = () => {
   const { user, logout } = useAuth();
-  const { isAdmin } = useQuestions();
   const location = useLocation();
   const navigate = useNavigate();
   const [isMobileMenuOpen, setIsMobileMenuOpen] = React.useState(false);
@@ -15,6 +13,9 @@ const Navbar = () => {
   const [pendingNavigation, setPendingNavigation] = React.useState<string | null>(null);
 
   const isActive = (path: string) => location.pathname === path;
+
+  // Check if current user is admin (only rptestprepservices@gmail.com)
+  const isAdminUser = user?.email === 'rptestprepservices@gmail.com';
 
   // Check if user is currently in a practice session
   const isInPracticeSession = location.pathname === '/generator';
@@ -45,7 +46,7 @@ const Navbar = () => {
     { path: '/learn', label: 'Learn' },
     ...(user ? [{ path: '/dashboard', label: 'Dashboard' }] : []),
     ...(user && !user.is_premium ? [{ path: '/upgrade', label: 'Upgrade' }] : []),
-    ...(user && isAdmin() ? [{ path: '/upload', label: 'Upload Questions' }] : []),
+    ...(user && isAdminUser ? [{ path: '/upload', label: 'Upload Questions' }] : []),
   ];
 
   return (
