@@ -118,14 +118,12 @@ const Practice = () => {
     }
 
     setError('');
-    // Adjust question count based on user's premium status (use it!)
-    const actualQuestionCount = user?.is_premium ? questionCount : Math.min(questionCount, 30);
 
     navigate('/generator', {
       state: {
         topic: selectedTopic || 'Mixed',
         difficulty: 'hard',
-        questionCount: actualQuestionCount,
+        questionCount: questionCount,
         timedMode,
         // New canonical value the generator can rely on:
         secondsPerQuestion,

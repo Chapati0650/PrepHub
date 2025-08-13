@@ -311,6 +311,7 @@ const QuestionGenerator = () => {
   const [isComplete, setIsComplete] = useState(false);
   const [isReviewMode, setIsReviewMode] = useState(false);
   const [score, setScore] = useState(0);
+  const [error, setError] = useState('');
 
   const settings = location.state || {
     topic: 'Algebra',
@@ -322,15 +323,21 @@ const QuestionGenerator = () => {
 
   useEffect(() => {
     const loadQuestions = async () => {
-      const generatedQuestions = await generateQuestions(settings);
-      setQuestions(generatedQuestions);
-      setAnswers(new Array(generatedQuestions.length).fill(null));
-      setOpenEndedAnswers(new Array(generatedQuestions.length).fill(''));
-      
-      if (settings.timedMode) {
-        const totalTime = generatedQuestions.length * (settings.customTimePerQuestion * 60);
-        setTimeLeft(totalTime);
-        setInitialTotalTime(totalTime);
+      try {
+        const generatedQuestions = await generateQuestions(settings);
+        setQuestions(generatedQuestions);
+        setAnswers(new Array(generatedQuestions.length).fill(null));
+        setOpenEndedAnswers(new Array(generatedQuestions.length).fill(''));
+        
+        if (settings.timedMode) {
+          const totalTime = generatedQuestions.length * (settings.customTimePerQuestion * 60);
+          setTimeLeft(totalTime);
+          setInitialTotalTime(totalTime);
+        }
+      } catch (error) {
+        console.error('Error loading questions:', error);
+        // Set error state to show the message to user
+        setError(error instanceof Error ? error.message : 'Failed to load questions');
       }
     };
 
@@ -494,6 +501,53 @@ const QuestionGenerator = () => {
   }
 
   if (questions.length === 0) {
+    // Show error message if there's an error (like out of questions)
+    if (error) {
+      return (
+        <div className="min-h-screen bg-white py-8">
+          <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8">
+            <div className="bg-white rounded-xl shadow-lg p-8 text-center">
+              <div className="mb-8">
+                <div className="w-24 h-24 mx-auto rounded-full bg-orange-100 text-orange-600 flex items-center justify-center mb-4">
+                  <span className="text-2xl">📚</span>
+                </div>
+                <h1 className="text-3xl font-bold text-gray-900 mb-4">
+                  {error.includes('run out of free questions') ? 'Out of Free Questions' : 'No Questions Available'}
+                </h1>
+                <p className="text-lg text-gray-600 mb-8 max-w-2xl mx-auto">
+                  {error}
+                </p>
+              </div>
+
+              <div className="flex flex-col sm:flex-row gap-4 justify-center">
+                {error.includes('run out of free questions') && (
+                  <button
+                    onClick={() => navigate('/upgrade')}
+                    className="bg-gradient-primary text-white px-8 py-4 rounded-2xl font-bold text-lg hover:shadow-xl transition-all duration-300 flex items-center justify-center"
+                  >
+                    <span className="text-xl mr-2">⭐</span>
+                    Upgrade to Premium
+                  </button>
+                )}
+                <button
+                  onClick={() => navigate('/practice')}
+                  className="bg-gray-600 text-white px-8 py-4 rounded-2xl font-bold text-lg hover:bg-gray-700 transition-all duration-300"
+                >
+                  Choose Different Topic
+                </button>
+                <button
+                  onClick={() => navigate('/dashboard')}
+                  className="bg-blue-600 text-white px-8 py-4 rounded-2xl font-bold text-lg hover:bg-blue-700 transition-all duration-300"
+                >
+                  View Dashboard
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      );
+    }
+
     return (
       <div className="min-h-screen bg-white flex items-center justify-center">
         <div className="text-center">

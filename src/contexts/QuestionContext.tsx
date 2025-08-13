@@ -40,6 +40,19 @@ export const QuestionProvider: React.FC<{ children: ReactNode }> = ({ children }
       const { data: { user } } = await supabase.auth.getUser();
       if (!user) throw new Error('User not authenticated');
 
+      // Check if user is premium
+      const { data: userData, error: userError } = await supabase
+        .from('users')
+        .select('is_premium')
+        .eq('id', user.id)
+        .single();
+
+      if (userError) {
+        console.error('Error checking user premium status:', userError);
+      }
+
+      const isPremium = userData?.is_premium || false;
+
       // Get correctly answered question IDs (only these are considered "completed")
       const { data: completedQuestions, error: completedError } = await supabase
         .from('user_question_attempts')
@@ -59,6 +72,10 @@ export const QuestionProvider: React.FC<{ children: ReactNode }> = ({ children }
         .select('*')
         .eq('is_active', true);
 
+      // Add access level filter for non-premium users
+      if (!isPremium) {
+        query = query.eq('access_level', 'free');
+      }
       if (settings.topic !== 'Mixed') {
         query = query.eq('topic', settings.topic);
       }
@@ -81,8 +98,14 @@ export const QuestionProvider: React.FC<{ children: ReactNode }> = ({ children }
       }
 
       if (!questions || questions.length === 0) {
-        // If no new questions available, user has completed all questions for this topic/difficulty
-        throw new Error('Congratulations! You have completed all available questions for this topic and difficulty level.');
+        // Create a more specific message based on premium status and topic
+        const topicName = settings.topic === 'Mixed' ? 'Mixed Skills' : settings.topic;
+        
+        if (!isPremium) {
+          throw new Error(`You've run out of free questions for ${topicName}. Upgrade to Premium for access to 300+ additional questions!`);
+        } else {
+          throw new Error(`Congratulations! You have completed all available questions for ${topicName}.`);
+        }
       }
 
       // Take questions in sequential order (already ordered by question_number)
