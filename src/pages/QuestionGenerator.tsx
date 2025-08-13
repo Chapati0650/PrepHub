@@ -336,8 +336,8 @@ const QuestionGenerator = () => {
         }
       } catch (error) {
         console.error('Error loading questions:', error);
-        // Set error state to show the message to user
         setError(error instanceof Error ? error.message : 'Failed to load questions');
+        setQuestions([]); // Ensure questions array is empty to trigger error display
       }
     };
 
@@ -501,7 +501,6 @@ const QuestionGenerator = () => {
   }
 
   if (questions.length === 0) {
-    // Show error message if there's an error (like out of questions)
     if (error) {
       return (
         <div className="min-h-screen bg-white py-8">
@@ -512,7 +511,7 @@ const QuestionGenerator = () => {
                   <span className="text-2xl">📚</span>
                 </div>
                 <h1 className="text-3xl font-bold text-gray-900 mb-4">
-                  {error.includes('run out of free questions') ? 'Out of Free Questions' : 'No Questions Available'}
+                  {error.includes('run out of free questions') || error.includes('Upgrade to Premium') ? 'Out of Free Questions' : 'No Questions Available'}
                 </h1>
                 <p className="text-lg text-gray-600 mb-8 max-w-2xl mx-auto">
                   {error}
@@ -520,7 +519,7 @@ const QuestionGenerator = () => {
               </div>
 
               <div className="flex flex-col sm:flex-row gap-4 justify-center">
-                {error.includes('run out of free questions') && (
+                {(error.includes('run out of free questions') || error.includes('Upgrade to Premium')) && (
                   <button
                     onClick={() => navigate('/upgrade')}
                     className="bg-gradient-primary text-white px-8 py-4 rounded-2xl font-bold text-lg hover:shadow-xl transition-all duration-300 flex items-center justify-center"
