@@ -78,11 +78,14 @@ Deno.serve(async (req) => {
               description: 'Access to 300+ SAT Math questions and advanced features',
             },
             unit_amount: 1499, // $14.99 in cents
+            recurring: {
+              interval: 'month',
+            },
           },
           quantity: 1,
         },
       ],
-      mode: 'payment',
+      mode: 'subscription',
       success_url: `${req.headers.get('origin') || 'http://localhost:5173'}/dashboard?payment=success`,
       cancel_url: `${req.headers.get('origin') || 'http://localhost:5173'}/upgrade?payment=cancelled`,
       client_reference_id: userId,

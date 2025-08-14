@@ -94,7 +94,7 @@ Deno.serve(async (req) => {
     console.log('📦 Event type:', event.type)
     console.log('📦 Event ID:', event.id)
 
-    // Handle checkout.session.completed event
+    // Handle subscription events
     if (event.type === 'checkout.session.completed') {
       const session = event.data.object as Stripe.Checkout.Session
       
@@ -120,13 +120,13 @@ Deno.serve(async (req) => {
         )
       }
 
-      // Only proceed if payment was successful
-      if (session.payment_status !== 'paid') {
+      // For subscriptions, check if subscription was created successfully
+      if (session.mode === 'subscription' && !session.subscription) {
         console.log('⚠️ Payment not completed, status:', session.payment_status)
         return new Response(
           JSON.stringify({ 
             received: true, 
-            message: 'Payment not completed yet' 
+            message: 'Subscription not created yet' 
           }),
           {
             headers: { ...corsHeaders, 'Content-Type': 'application/json' },
@@ -192,6 +192,77 @@ Deno.serve(async (req) => {
           success: true,
           userId: userId,
           premiumStatus: true
+        }),
+        {
+          headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+          status: 200,
+        },
+      )
+    }
+
+    // Handle successful recurring payments
+    if (event.type === 'invoice.payment_succeeded') {
+      const invoice = event.data.object as Stripe.Invoice
+      
+      console.log('💰 Processing successful payment:', invoice.id)
+      console.log('👤 Customer:', invoice.customer)
+      
+      // For recurring payments, we don't need to do anything special
+      // The subscription is already active, just log it
+      console.log('✅ Recurring payment processed successfully')
+      
+      return new Response(
+        JSON.stringify({ 
+          received: true,
+          success: true,
+          message: 'Recurring payment processed'
+        }),
+        {
+          headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+          status: 200,
+        },
+      )
+    }
+
+    // Handle failed payments
+    if (event.type === 'invoice.payment_failed') {
+      const invoice = event.data.object as Stripe.Invoice
+      
+      console.log('❌ Payment failed:', invoice.id)
+      console.log('👤 Customer:', invoice.customer)
+      
+      // You might want to send an email notification or take other action
+      // For now, just log it
+      console.log('⚠️ Payment failure logged')
+      
+      return new Response(
+        JSON.stringify({ 
+          received: true,
+          message: 'Payment failure processed'
+        }),
+        {
+          headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+          status: 200,
+        },
+      )
+    }
+
+    // Handle subscription cancellation
+    if (event.type === 'customer.subscription.deleted') {
+      const subscription = event.data.object as Stripe.Subscription
+      
+      console.log('🚫 Subscription cancelled:', subscription.id)
+      console.log('👤 Customer:', subscription.customer)
+      
+      // Get user ID from subscription metadata or customer
+      // You'll need to implement logic to find the user based on Stripe customer ID
+      // For now, just log it
+      console.log('⚠️ Subscription cancellation logged')
+      
+      return new Response(
+        JSON.stringify({ 
+          received: true,
+          message: 'Subscription cancellation processed'
         }),
         {
           headers: { ...corsHeaders, 'Content-Type': 'application/json' },
