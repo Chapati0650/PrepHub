@@ -147,6 +147,22 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
     initializeAuth();
 
+    // Check for payment success and refresh user data
+    const checkPaymentSuccess = async () => {
+      const urlParams = new URLSearchParams(window.location.search);
+      if (urlParams.get('payment') === 'success') {
+        console.log('💳 Payment success detected, refreshing user data...');
+        // Wait a moment for webhook to process
+        setTimeout(async () => {
+          await refreshUser();
+          // Clean up URL
+          window.history.replaceState({}, '', window.location.pathname);
+        }, 2000);
+      }
+    };
+
+    checkPaymentSuccess();
+
     const { data: { subscription } } = supabase.auth.onAuthStateChange((event, session) => {
   console.log('📣 Auth state changed:', event);
 
