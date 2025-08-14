@@ -78,7 +78,7 @@ Deno.serve(async (req) => {
     // If webhook secret is available, verify the signature
     if (webhookSecret && signature) {
       try {
-        event = stripe.webhooks.constructEvent(body, signature, webhookSecret)
+        event = await stripe.webhooks.constructEventAsync(body, signature, webhookSecret)
         console.log('✅ Webhook signature verified')
       } catch (err) {
         console.error('❌ Webhook signature verification failed:', err)
