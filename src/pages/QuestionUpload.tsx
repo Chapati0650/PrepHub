@@ -373,20 +373,6 @@ const QuestionUpload = () => {
             </select>
           </div>
 
-          {/* Difficulty */}
-          <div>
-            <label className="block text-sm font-medium text-gray-700 mb-2">Difficulty</label>
-            <select
-              value={form.difficulty}
-              onChange={(e) => handleInputChange('difficulty', e.target.value)}
-              className="w-full p-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
-            >
-              <option value="easy">Easy</option>
-              <option value="medium">Medium</option>
-              <option value="hard">Hard</option>
-            </select>
-          </div>
-
           {/* Access Level */}
           <div>
             <label className="block text-sm font-medium text-gray-700 mb-2">Access Level</label>
