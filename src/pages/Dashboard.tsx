@@ -326,7 +326,6 @@ const Dashboard = () => {
               >
                 🧪 Fix Premium Status
               </button>
-            </div>
             <button
               onClick={async () => {
                 console.log('🔄 Manual refresh triggered...');
@@ -353,9 +352,9 @@ const Dashboard = () => {
             >
               🔄 Refresh Data
             </button>
+            </div>
             <p className="text-xs text-gray-500 mt-1">Last updated: {new Date(lastRefresh).toLocaleTimeString()}</p>
           </div>
-        </div>
           
           <div className="flex flex-col sm:flex-row gap-4 justify-center">
             <button
