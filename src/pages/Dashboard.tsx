@@ -11,6 +11,7 @@ import {
 } from 'lucide-react';
 import { useAuth } from '../contexts/AuthContext';
 import { useQuestions } from '../contexts/QuestionContext';
+import { supabase } from '../lib/supabase';
 
 interface UserProgress {
   totalQuestionsAnswered: number;
@@ -295,36 +296,32 @@ const Dashboard = () => {
             <div className="flex gap-4 justify-center mb-4">
               <button
                 onClick={async () => {
-                  console.log('🧪 Testing webhook manually...');
+                  console.log('🧪 Updating premium status directly...');
                   try {
-                    const response = await fetch(`${import.meta.env.VITE_SUPABASE_URL}/functions/v1/test-webhook`, {
-                      method: 'POST',
-                      headers: {
-                        'Authorization': `Bearer ${import.meta.env.VITE_SUPABASE_ANON_KEY}`,
-                        'Content-Type': 'application/json',
-                      },
-                      body: JSON.stringify({
-                        userId: user?.id
-                      })
-                    });
+                    // Update premium status directly using Supabase client
+                    const { data, error } = await supabase
+                      .from('users')
+                      .update({ is_premium: true })
+                      .eq('id', user?.id)
+                      .select('is_premium')
+                      .single();
                     
-                    const result = await response.json();
-                    console.log('🧪 Test webhook result:', result);
-                    
-                    if (result.success) {
+                    if (error) {
+                      console.error('❌ Database update error:', error);
+                      alert('❌ Failed to update premium status: ' + error.message);
+                    } else {
+                      console.log('✅ Premium status updated:', data);
                       alert('✅ Premium status updated! Refreshing page...');
                       window.location.reload();
-                    } else {
-                      alert('❌ Failed to update premium status: ' + result.error);
                     }
                   } catch (error) {
-                    console.error('❌ Test webhook failed:', error);
-                    alert('❌ Test webhook failed: ' + error.message);
+                    console.error('❌ Premium update failed:', error);
+                    alert('❌ Premium update failed: ' + error.message);
                   }
                 }}
                 className="bg-green-600 text-white px-4 py-2 rounded-lg font-medium hover:bg-green-700 transition-colors text-sm"
               >
-                🧪 Fix Premium Status
+                🧪 Activate Premium
               </button>
             <button
               onClick={async () => {
