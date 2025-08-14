@@ -211,7 +211,7 @@ export const QuestionProvider: React.FC<{ children: ReactNode }> = ({ children }
         .from('user_progress')
         .select('*')
         .eq('user_id', user.id)
-        .single();
+        .maybeSingle();
 
       if (error && error.code !== 'PGRST116') {
         console.error('❌ Error fetching user progress:', error);
