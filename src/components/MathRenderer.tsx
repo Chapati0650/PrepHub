@@ -56,6 +56,11 @@ const MathRenderer: React.FC<MathRendererProps> = ({
     return /sqrt\(|\\sqrt|\\d?frac|\([^)]*\/[^)]*\)|[a-zA-Z0-9\-]+\/[a-zA-Z0-9\-]+|[\^_]|\\[a-zA-Z]+|\bpi\b|\balpha\b|\bbeta\b|\bgamma\b|\bdelta\b|\btheta\b|<=[>=]|!=|\+\-|degrees?/g.test(text);
   };
 
+  // Check if text contains fractions that should be displayed in block mode
+  const containsDisplayFractions = (text: string): boolean => {
+    return /\\d?frac\{[^}]+\}\{[^}]+\}|[a-zA-Z0-9\-]+\/[a-zA-Z0-9\-]+|[a-zA-Z0-9\-]+\/sqrt\([^)]+\)|\([^)]*\/[^)]*\)/.test(text);
+  };
+
   // If no math notation detected, render as plain text
   if (!containsMath(children)) {
     return (
@@ -63,6 +68,17 @@ const MathRenderer: React.FC<MathRendererProps> = ({
         {children}
       </span>
     );
+  }
+
+  // If the text contains fractions and is not explicitly inline, use block math for better fraction display
+  if (!inline && containsDisplayFractions(children)) {
+    try {
+      const latexText = convertToLatex(children);
+      return <BlockMath math={latexText} />;
+    } catch (error) {
+      console.warn('Block math rendering error:', error);
+      // Fall through to inline rendering
+    }
   }
 
   try {
