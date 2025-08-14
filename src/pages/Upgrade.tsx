@@ -121,9 +121,9 @@ const Upgrade = () => {
             <div className="text-center">
               <h2 className="text-2xl font-bold text-gray-900 mb-2">Premium Access</h2>
               <div className="mb-6">
-                <span className="text-5xl font-bold text-gray-900">$14</span>
-                <span className="text-xl text-gray-600">.99</span>
-                <div className="text-gray-600 text-sm">per month</div>
+                <span className="text-5xl font-bold text-gray-900">$0</span>
+                <span className="text-xl text-gray-600">.01</span>
+                <div className="text-gray-600 text-sm">one-time payment (testing)</div>
               </div>
 
               <button

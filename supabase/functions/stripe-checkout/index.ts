@@ -75,7 +75,7 @@ Deno.serve(async (req) => {
             currency: 'usd',
             product_data: {
               name: 'PrepHub Premium',
-              description: 'Access to 300+ SAT Math questions and advanced features',
+              unit_amount: 1, // $0.01 in cents for testing
             },
             unit_amount: 2500, // $25.00 in cents
           },
