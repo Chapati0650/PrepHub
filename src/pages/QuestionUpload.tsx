@@ -124,15 +124,49 @@ const QuestionUpload = () => {
         .select('question_number')
         .order('question_number', { ascending: false })
         .limit(1)
-        .maybeSingle();
+        .single();
 
       if (maxError) {
-        console.error('❌ Error getting max question number:', maxError);
-        throw maxError;
+        console.log('ℹ️ No existing questions found, starting with question number 1');
+        console.log('ℹ️ Error details:', maxError);
       }
 
-      const nextQuestionNumber = (maxQuestionData?.question_number || 0) + 1;
+      // If no questions exist or error occurred, start with 1
+      // Otherwise, increment the highest question number
+      let nextQuestionNumber = 1;
+      if (maxQuestionData?.question_number && !maxError) {
+        nextQuestionNumber = maxQuestionData.question_number + 1;
+      }
+      
       console.log('🔢 Next question number:', nextQuestionNumber);
+
+      // Double-check that this question number doesn't exist
+      const { data: existingQuestion, error: checkError } = await supabase
+        .from('questions')
+        .select('question_number')
+        .eq('question_number', nextQuestionNumber)
+        .maybeSingle();
+
+      if (existingQuestion) {
+        console.log('⚠️ Question number already exists, finding next available...');
+        // Get all question numbers and find the first gap
+        const { data: allQuestions, error: allError } = await supabase
+          .from('questions')
+          .select('question_number')
+          .order('question_number', { ascending: true });
+
+        if (allError) {
+          console.error('❌ Error getting all question numbers:', allError);
+          throw allError;
+        }
+
+        const questionNumbers = allQuestions?.map(q => q.question_number) || [];
+        nextQuestionNumber = 1;
+        while (questionNumbers.includes(nextQuestionNumber)) {
+          nextQuestionNumber++;
+        }
+        console.log('🔢 Found available question number:', nextQuestionNumber);
+      }
 
       // Prepare question data
       const questionData = {
