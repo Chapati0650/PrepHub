@@ -24,8 +24,8 @@ const MathRenderer: React.FC<MathRendererProps> = ({
           .replace(/([a-zA-Z0-9]+)\/([a-zA-Z0-9]+)/g, '\\frac{$1}{$2}');
         return `\\sqrt{${processedContent}}`;
       })
-      // Handle complex fractions with square roots: 5/sqrt(34) → \frac{5}{\sqrt{34}}
-      .replace(/([a-zA-Z0-9\-]+)\/sqrt\(([^)]+)\)/g, '\\frac{$1}{\\sqrt{$2}}')
+      // Handle fractions with square roots: 5/sqrt(34) → \frac{5}{\sqrt{34}}
+      .replace(/([a-zA-Z0-9\-]+)\/\\sqrt\{([^}]+)\}/g, '\\frac{$1}{\\sqrt{$2}}')
       // Handle fractions with parentheses: (a/6) → \frac{a}{6}
       .replace(/\(([^)]+)\/([^)]+)\)/g, '\\frac{$1}{$2}')
       // Handle simple fractions: a/6 → \frac{a}{6} (but be careful not to break URLs or dates)
