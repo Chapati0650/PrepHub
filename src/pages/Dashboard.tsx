@@ -292,6 +292,40 @@ const Dashboard = () => {
           
           {/* Manual Refresh Button for debugging */}
           <div className="mb-6">
+            <div className="flex gap-4 justify-center mb-4">
+              <button
+                onClick={async () => {
+                  console.log('🧪 Testing webhook manually...');
+                  try {
+                    const response = await fetch(`${import.meta.env.VITE_SUPABASE_URL}/functions/v1/test-webhook`, {
+                      method: 'POST',
+                      headers: {
+                        'Authorization': `Bearer ${import.meta.env.VITE_SUPABASE_ANON_KEY}`,
+                        'Content-Type': 'application/json',
+                      },
+                      body: JSON.stringify({
+                        userId: user?.id
+                      })
+                    });
+                    
+                    const result = await response.json();
+                    console.log('🧪 Test webhook result:', result);
+                    
+                    if (result.success) {
+                      alert('✅ Premium status updated! Refreshing page...');
+                      window.location.reload();
+                    } else {
+                      alert('❌ Failed to update premium status: ' + result.error);
+                    }
+                  } catch (error) {
+                    console.error('❌ Test webhook failed:', error);
+                    alert('❌ Test webhook failed: ' + error.message);
+                  }
+                }}
+                className="bg-green-600 text-white px-4 py-2 rounded-lg font-medium hover:bg-green-700 transition-colors text-sm"
+              >
+                🧪 Fix Premium Status
+              </button>
             <button
               onClick={async () => {
                 console.log('🔄 Manual refresh triggered...');
