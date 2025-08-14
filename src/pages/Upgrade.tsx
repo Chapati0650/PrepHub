@@ -99,7 +99,7 @@ const Upgrade = () => {
             </span>
           </h1>
           <p className="text-xl md:text-2xl text-gray-600 max-w-3xl mx-auto">
-            Get exclusive access to 300 carefully curated SAT questions that are highly likely to appear on your next test. Upgrade now for only $14.99 and boost your score!
+            Get exclusive access to 300 carefully curated SAT questions that are highly likely to appear on your next test. Upgrade now for only $24.99 and boost your score!
           </p>
         </div>
 
@@ -121,9 +121,9 @@ const Upgrade = () => {
             <div className="text-center">
               <h2 className="text-2xl font-bold text-gray-900 mb-2">Premium Access</h2>
               <div className="mb-6">
-                <span className="text-5xl font-bold text-gray-900">$0</span>
-                <span className="text-xl text-gray-600">.50</span>
-                <div className="text-gray-600 text-sm">one-time payment (testing)</div>
+                <span className="text-5xl font-bold text-gray-900">$24</span>
+                <span className="text-xl text-gray-600">.99</span>
+                <div className="text-gray-600 text-sm">one-time payment</div>
               </div>
 
               <button

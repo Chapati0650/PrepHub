@@ -77,7 +77,7 @@ Deno.serve(async (req) => {
               name: 'PrepHub Premium',
               description: 'One-time access to 300+ premium SAT Math questions',
             },
-            unit_amount: 50, // $0.50 in cents (Stripe minimum)
+            unit_amount: 2499, // $24.99 in cents
           },
           quantity: 1,
         },
