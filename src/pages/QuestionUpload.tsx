@@ -1,15 +1,13 @@
 import React, { useState } from 'react';
-import { Link } from 'react-router-dom';
-import { Upload, FileText, Check, X, AlertCircle, Download, Image, Trash2, Lock, Unlock } from 'lucide-react';
-import { useQuestions } from '../contexts/QuestionContext';
+import { useNavigate } from 'react-router-dom';
+import { Upload, Plus, Trash2, Save, AlertCircle, CheckCircle, Image, X } from 'lucide-react';
 import { useAuth } from '../contexts/AuthContext';
+import { supabase } from '../lib/supabase';
 import MathInput from '../components/MathInput';
 import MathRenderer from '../components/MathRenderer';
 import { ImageStorageService } from '../lib/imageStorage';
-import { supabase } from '../lib/supabase';
 
-interface UploadedQuestion {
-  questionNumber?: number;
+interface QuestionForm {
   question: string;
   questionType: 'multiple_choice' | 'open_ended';
   optionA: string;
@@ -17,1089 +15,477 @@ interface UploadedQuestion {
   optionC: string;
   optionD: string;
   correctAnswer: string;
+  explanation: string;
   topic: string;
   difficulty: string;
-  optionAImage?: string;
-  optionBImage?: string;
-  optionCImage?: string;
-  optionDImage?: string;
+  accessLevel: string;
+  imageUrl: string;
+  optionAImage: string;
+  optionBImage: string;
+  optionCImage: string;
+  optionDImage: string;
 }
 
 const QuestionUpload = () => {
   const { user } = useAuth();
-  const { uploadSingleQuestion, getQuestionsCount, getAllQuestions, deleteQuestion, isAdmin } = useQuestions();
-  const [selectedSkill, setSelectedSkill] = useState('');
-  const [selectedQuestionType, setSelectedQuestionType] = useState<'multiple_choice' | 'open_ended'>('multiple_choice');
-  const [questionText, setQuestionText] = useState('');
-  const [options, setOptions] = useState(['', '', '', '']);
-  const [correctAnswer, setCorrectAnswer] = useState('');
-  const [questionNumber, setQuestionNumber] = useState<number | null>(null);
-  const [uploadStatus, setUploadStatus] = useState<'idle' | 'processing' | 'success' | 'error'>('idle');
-  const [errorMessage, setErrorMessage] = useState('');
-  const [questionsCount, setQuestionsCount] = useState<number>(0);
-  const [selectedImage, setSelectedImage] = useState<File | null>(null);
-  const [imagePreview, setImagePreview] = useState<string | null>(null);
-  const [imageUrl, setImageUrl] = useState<string | null>(null);
-  const [imageUploading, setImageUploading] = useState(false);
-  const [selectedAccessLevel, setSelectedAccessLevel] = useState<'free' | 'premium'>('premium'); // New state for access level
-  
-  // Answer choice image states
-  const [optionTypes, setOptionTypes] = useState<('text' | 'image')[]>(['text', 'text', 'text', 'text']);
-  const [optionImages, setOptionImages] = useState<(File | null)[]>([null, null, null, null]);
-  const [optionImagePreviews, setOptionImagePreviews] = useState<(string | null)[]>([null, null, null, null]);
-  const [optionImageUrls, setOptionImageUrls] = useState<(string | null)[]>([null, null, null, null]);
-  const [optionImageUploading, setOptionImageUploading] = useState<boolean[]>([false, false, false, false]);
+  const navigate = useNavigate();
+  const [loading, setLoading] = useState(false);
+  const [message, setMessage] = useState('');
+  const [messageType, setMessageType] = useState<'success' | 'error'>('success');
+  const [uploadingImage, setUploadingImage] = useState<string | null>(null);
 
-  // Question management states
-  const [questionsList, setQuestionsList] = useState<any[]>([]);
-  const [questionsLoading, setQuestionsLoading] = useState(false);
-  const [deletingQuestionId, setDeletingQuestionId] = useState<string | null>(null);
-
-  const skills = [
-    'Algebra',
-    'Advanced Math',
-    'Problem Solving and Data Analysis',
-    'Geo/Trig'
-  ];
-
-  React.useEffect(() => {
-    const loadCount = async () => {
-      try {
-        const count = await getQuestionsCount();
-        setQuestionsCount(count);
-      } catch (error) {
-        console.error('Error loading questions count:', error);
-        setQuestionsCount(0);
-      }
-    };
-    loadCount();
-  }, [getQuestionsCount]);
-
-  const downloadTemplate = () => {
-    const csvContent = selectedQuestionType === 'multiple_choice' 
-      ? 'questionNumber,question,optionA,optionB,optionC,optionD,correctAnswer\n1,"Sample question?","Option A","Option B","Option C","Option D","A"'
-      : 'questionNumber,question,correctAnswer\n1,"Sample question?","42"';
-    
-    const blob = new Blob([csvContent], { type: 'text/csv' });
-    const url = window.URL.createObjectURL(blob);
-    const link = document.createElement('a');
-    link.href = url;
-    link.download = `${selectedQuestionType}_template.csv`;
-    document.body.appendChild(link);
-    link.click();
-    document.body.removeChild(link);
-    window.URL.revokeObjectURL(url);
-  };
+  const [form, setForm] = useState<QuestionForm>({
+    question: '',
+    questionType: 'multiple_choice',
+    optionA: '',
+    optionB: '',
+    optionC: '',
+    optionD: '',
+    correctAnswer: 'A',
+    explanation: '',
+    topic: 'Algebra',
+    difficulty: 'hard',
+    accessLevel: 'premium',
+    imageUrl: '',
+    optionAImage: '',
+    optionBImage: '',
+    optionCImage: '',
+    optionDImage: ''
+  });
 
   // Check if user is admin
-  if (!user) {
-    return (
-      <div className="min-h-screen bg-gray-50 flex items-center justify-center">
-        <div className="text-center bg-white p-8 rounded-xl shadow-lg">
-          <h1 className="text-2xl font-bold text-gray-900 mb-4">Access Denied</h1>
-          <p className="text-gray-600 mb-4">Please log in with the admin account to access this page.</p>
-          <p className="text-sm text-gray-500">Admin email: rptestprepservices@gmail.com</p>
-          <Link 
-            to="/login" 
-            className="mt-4 inline-block bg-teal-600 text-white px-4 py-2 rounded-lg hover:bg-teal-700"
-          >
-            Go to Login
-          </Link>
-        </div>
-      </div>
-    );
-  }
-
-  if (!isAdmin()) {
-    return (
-      <div className="min-h-screen bg-gray-50 flex items-center justify-center">
-        <div className="text-center bg-white p-8 rounded-xl shadow-lg">
-          <div className="bg-red-100 p-4 rounded-full w-16 h-16 mx-auto mb-4 flex items-center justify-center">
-            <X className="h-8 w-8 text-red-600" />
-          </div>
-          <h1 className="text-2xl font-bold text-gray-900 mb-4">Access Denied</h1>
-          <p className="text-gray-600 mb-2">This page is restricted to the admin account only.</p>
-          <p className="text-sm text-gray-500 mb-4">Current user: {user.email}</p>
-          <p className="text-sm text-gray-500 mb-4">Required: rptestprepservices@gmail.com</p>
-          <Link 
-            to="/login" 
-            className="inline-block bg-teal-600 text-white px-4 py-2 rounded-lg hover:bg-teal-700"
-          >
-            Switch Account
-          </Link>
-        </div>
-      </div>
-    );
-  }
-
-  const canAddQuestion = () => {
-    if (!selectedSkill || !selectedQuestionType || !questionText.trim() || !correctAnswer.trim()) {
-      return false;
+  React.useEffect(() => {
+    if (!user || user.email !== 'rptestprepservices@gmail.com') {
+      navigate('/dashboard');
     }
-    
-    if (selectedQuestionType === 'multiple_choice') {
-      return options.every(option => option.trim()) && ['A', 'B', 'C', 'D'].includes(correctAnswer);
-    }
-    
-    return /^-?[0-9]+(\.[0-9]+)?$/.test(correctAnswer.trim());
+  }, [user, navigate]);
+
+  const handleInputChange = (field: keyof QuestionForm, value: string) => {
+    setForm(prev => ({ ...prev, [field]: value }));
   };
 
-  const handleAddQuestion = async () => {
-    if (!selectedSkill) {
-      setErrorMessage('Please select a skill category before uploading');
-      return;
-    }
-
-    if (!canAddQuestion()) {
-      setErrorMessage('Please fill in all required fields');
-      return;
-    }
-
-    setUploadStatus('processing');
-    setErrorMessage('');
-    
+  const handleImageUpload = async (file: File, field: string) => {
     try {
-      console.log('Adding question with type:', selectedQuestionType);
-      console.log('Options:', options);
-      console.log('Correct answer:', correctAnswer);
-      console.log('Image URL being saved:', imageUrl);
-      
-      const questionData = {
-        questionNumber,
-        question: questionText,
-        questionType: selectedQuestionType,
-        optionA: selectedQuestionType === 'multiple_choice' ? (options[0] || null) : null,
-        optionB: selectedQuestionType === 'multiple_choice' ? (options[1] || null) : null,
-        optionC: selectedQuestionType === 'multiple_choice' ? (options[2] || null) : null,
-        optionD: selectedQuestionType === 'multiple_choice' ? (options[3] || null) : null,
-        correctAnswer: selectedQuestionType === 'multiple_choice' ? correctAnswer.toUpperCase() : correctAnswer,
-        topic: selectedSkill,
-        difficulty: 'hard',
-        imageUrl: imageUrl,
-        accessLevel: selectedAccessLevel // Pass the selected access level
-      };
-      
-      console.log('Question data being sent:', questionData);
-      
-      const questionWithImages = {
-        ...questionData,
-        optionAImage: optionImageUrls[0],
-        optionBImage: optionImageUrls[1],
-        optionCImage: optionImageUrls[2],
-        optionDImage: optionImageUrls[3]
-      };
-      
-      await uploadSingleQuestion(questionWithImages);
-      
-      // Verify the question was saved correctly
-      console.log('Question uploaded, verifying...');
-      const { data: verifyData, error: verifyError } = await supabase
-        .from('questions')
-        .select('*')
-        .order('created_at', { ascending: false })
-        .limit(1);
-        
-      if (verifyData && verifyData.length > 0) {
-        console.log('Last uploaded question in database:', verifyData[0]);
+      setUploadingImage(field);
+      const result = await ImageStorageService.uploadImage(file);
+      handleInputChange(field as keyof QuestionForm, result.url);
+      setMessage(`Image uploaded successfully for ${field}`);
+      setMessageType('success');
+    } catch (error) {
+      console.error('Image upload error:', error);
+      setMessage(error instanceof Error ? error.message : 'Failed to upload image');
+      setMessageType('error');
+    } finally {
+      setUploadingImage(null);
+    }
+  };
+
+  const removeImage = (field: string) => {
+    handleInputChange(field as keyof QuestionForm, '');
+  };
+
+  const handleSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setLoading(true);
+    setMessage('');
+
+    try {
+      // Validation
+      if (!form.question.trim()) {
+        throw new Error('Question text is required');
       }
-      
-      const newCount = await getQuestionsCount();
-      setQuestionsCount(newCount);
+
+      if (form.questionType === 'multiple_choice') {
+        if (!form.optionA.trim() || !form.optionB.trim() || !form.optionC.trim() || !form.optionD.trim()) {
+          throw new Error('All four options are required for multiple choice questions');
+        }
+        if (!['A', 'B', 'C', 'D'].includes(form.correctAnswer)) {
+          throw new Error('Correct answer must be A, B, C, or D for multiple choice questions');
+        }
+      } else {
+        if (!form.correctAnswer.trim()) {
+          throw new Error('Correct answer is required for open-ended questions');
+        }
+      }
+
+      // Get the next question number
+      const { data: maxQuestionData, error: maxError } = await supabase
+        .from('questions')
+        .select('question_number')
+        .order('question_number', { ascending: false })
+        .limit(1)
+        .single();
+
+      if (maxError && maxError.code !== 'PGRST116') {
+        throw maxError;
+      }
+
+      const nextQuestionNumber = (maxQuestionData?.question_number || 0) + 1;
+
+      // Prepare question data
+      const questionData = {
+        question_number: nextQuestionNumber,
+        question: form.question,
+        question_type: form.questionType,
+        option_a: form.questionType === 'multiple_choice' ? form.optionA : null,
+        option_b: form.questionType === 'multiple_choice' ? form.optionB : null,
+        option_c: form.questionType === 'multiple_choice' ? form.optionC : null,
+        option_d: form.questionType === 'multiple_choice' ? form.optionD : null,
+        correct_answer: form.correctAnswer,
+        explanation: form.explanation || null,
+        topic: form.topic,
+        difficulty: form.difficulty,
+        access_level: form.accessLevel,
+        image_url: form.imageUrl || null,
+        option_a_image: form.optionAImage || null,
+        option_b_image: form.optionBImage || null,
+        option_c_image: form.optionCImage || null,
+        option_d_image: form.optionDImage || null,
+        created_by: user?.id,
+        is_active: true
+      };
+
+      const { error } = await supabase
+        .from('questions')
+        .insert(questionData);
+
+      if (error) {
+        throw error;
+      }
+
+      setMessage(`Question #${nextQuestionNumber} uploaded successfully!`);
+      setMessageType('success');
       
       // Reset form
-      setQuestionText('');
-      setOptions(['', '', '', '']);
-      setCorrectAnswer('');
-      setQuestionNumber(null);
-      setSelectedImage(null);
-      setImagePreview(null);
-      setImageUrl(null);
-      setOptionTypes(['text', 'text', 'text', 'text']);
-      setOptionImages([null, null, null, null]);
-      setOptionImagePreviews([null, null, null, null]);
-      setOptionImageUrls([null, null, null, null]);
-      setOptionImageUploading([false, false, false, false]);
-      setSelectedAccessLevel('premium'); // Reset access level
-      setUploadStatus('success');
-      
-      // Clear success message after 3 seconds
-      setTimeout(() => setUploadStatus('idle'), 3000);
+      setForm({
+        question: '',
+        questionType: 'multiple_choice',
+        optionA: '',
+        optionB: '',
+        optionC: '',
+        optionD: '',
+        correctAnswer: 'A',
+        explanation: '',
+        topic: 'Algebra',
+        difficulty: 'hard',
+        accessLevel: 'premium',
+        imageUrl: '',
+        optionAImage: '',
+        optionBImage: '',
+        optionCImage: '',
+        optionDImage: ''
+      });
+
     } catch (error) {
-      setErrorMessage(error instanceof Error ? error.message : 'Failed to add question to database');
-      setUploadStatus('error');
-    }
-  };
-
-  // Reset form when question type changes
-  React.useEffect(() => {
-    setQuestionText('');
-    setOptions(['', '', '', '']);
-    setCorrectAnswer('');
-    setQuestionNumber(null);
-    setSelectedImage(null);
-    setImagePreview(null);
-    setImageUrl(null);
-    setOptionTypes(['text', 'text', 'text', 'text']);
-    setOptionImages([null, null, null, null]);
-    setOptionImagePreviews([null, null, null, null]);
-    setOptionImageUrls([null, null, null, null]);
-    setOptionImageUploading([false, false, false, false]);
-    setSelectedAccessLevel('premium'); // Reset access level
-    setUploadStatus('idle');
-    setErrorMessage('');
-  }, [selectedQuestionType]);
-
-  const handleImageSelect = (event: React.ChangeEvent<HTMLInputElement>) => {
-    const file = event.target.files?.[0];
-    if (file) {
-      setSelectedImage(file);
-      
-      // Create preview URL
-      const reader = new FileReader();
-      reader.onload = (e) => {
-        setImagePreview(e.target?.result as string);
-      };
-      reader.readAsDataURL(file);
-    }
-  };
-
-  const handleImageUpload = async () => {
-    if (!selectedImage) return;
-    
-    setImageUploading(true);
-    setErrorMessage('');
-    
-    try {
-      const result = await ImageStorageService.uploadImage(selectedImage);
-      setImageUrl(result.url);
-      setUploadStatus('idle');
-    } catch (error) {
-      setErrorMessage(error instanceof Error ? error.message : 'Failed to upload image');
-      setUploadStatus('error');
+      console.error('Upload error:', error);
+      setMessage(error instanceof Error ? error.message : 'Failed to upload question');
+      setMessageType('error');
     } finally {
-      setImageUploading(false);
+      setLoading(false);
     }
   };
 
-  const handleImageRemove = () => {
-    setSelectedImage(null);
-    setImagePreview(null);
-    setImageUrl(null);
-  };
+  const ImageUploadField = ({ 
+    label, 
+    field, 
+    currentUrl 
+  }: { 
+    label: string; 
+    field: string; 
+    currentUrl: string; 
+  }) => (
+    <div className="space-y-2">
+      <label className="block text-sm font-medium text-gray-700">{label}</label>
+      <div className="flex items-center space-x-3">
+        <input
+          type="file"
+          accept="image/*"
+          onChange={(e) => {
+            const file = e.target.files?.[0];
+            if (file) handleImageUpload(file, field);
+          }}
+          className="block w-full text-sm text-gray-500 file:mr-4 file:py-2 file:px-4 file:rounded-lg file:border-0 file:text-sm file:font-medium file:bg-blue-50 file:text-blue-700 hover:file:bg-blue-100"
+          disabled={uploadingImage === field}
+        />
+        {uploadingImage === field && (
+          <div className="animate-spin rounded-full h-5 w-5 border-b-2 border-blue-600"></div>
+        )}
+        {currentUrl && (
+          <button
+            type="button"
+            onClick={() => removeImage(field)}
+            className="text-red-600 hover:text-red-700"
+          >
+            <X className="h-4 w-4" />
+          </button>
+        )}
+      </div>
+      {currentUrl && (
+        <div className="mt-2">
+          <img
+            src={currentUrl}
+            alt="Preview"
+            className="max-w-32 h-auto rounded border border-gray-300"
+            onError={(e) => {
+              e.currentTarget.style.display = 'none';
+            }}
+          />
+        </div>
+      )}
+    </div>
+  );
 
-  const handleOptionTypeChange = (index: number, type: 'text' | 'image') => {
-    const newTypes = [...optionTypes];
-    newTypes[index] = type;
-    setOptionTypes(newTypes);
-    
-    // Clear the option data when switching types
-    if (type === 'text') {
-      const newImages = [...optionImages];
-      const newPreviews = [...optionImagePreviews];
-      const newUrls = [...optionImageUrls];
-      newImages[index] = null;
-      newPreviews[index] = null;
-      newUrls[index] = null;
-      setOptionImages(newImages);
-      setOptionImagePreviews(newPreviews);
-      setOptionImageUrls(newUrls);
-    } else {
-      const newOptions = [...options];
-      newOptions[index] = '';
-      setOptions(newOptions);
-    }
-  };
-
-  const handleOptionImageSelect = (index: number, event: React.ChangeEvent<HTMLInputElement>) => {
-    const file = event.target.files?.[0];
-    if (file) {
-      const newImages = [...optionImages];
-      const newPreviews = [...optionImagePreviews];
-      newImages[index] = file;
-      setOptionImages(newImages);
-      
-      // Create preview URL
-      const reader = new FileReader();
-      reader.onload = (e) => {
-        newPreviews[index] = e.target?.result as string;
-        setOptionImagePreviews(newPreviews);
-      };
-      reader.readAsDataURL(file);
-    }
-  };
-
-  const handleOptionImageUpload = async (index: number) => {
-    const file = optionImages[index];
-    if (!file) return;
-    
-    const newUploading = [...optionImageUploading];
-    newUploading[index] = true;
-    setOptionImageUploading(newUploading);
-    setErrorMessage('');
-    
-    try {
-      const result = await ImageStorageService.uploadImage(file);
-      const newUrls = [...optionImageUrls];
-      newUrls[index] = result.url;
-      setOptionImageUrls(newUrls);
-    } catch (error) {
-      setErrorMessage(error instanceof Error ? error.message : 'Failed to upload option image');
-      setUploadStatus('error');
-    } finally {
-      newUploading[index] = false;
-      setOptionImageUploading(newUploading);
-    }
-  };
-
-  const handleOptionImageRemove = (index: number) => {
-    const newImages = [...optionImages];
-    const newPreviews = [...optionImagePreviews];
-    const newUrls = [...optionImageUrls];
-    newImages[index] = null;
-    newPreviews[index] = null;
-    newUrls[index] = null;
-    setOptionImages(newImages);
-    setOptionImagePreviews(newPreviews);
-    setOptionImageUrls(newUrls);
-  };
-
-  const loadQuestions = async () => {
-    setQuestionsLoading(true);
-    try {
-      const questions = await getAllQuestions();
-      setQuestionsList(questions);
-    } catch (error) {
-      console.error('Error loading questions:', error);
-      setErrorMessage('Failed to load questions');
-    } finally {
-      setQuestionsLoading(false);
-    }
-  };
-
-  const handleDeleteQuestion = async (questionId: string, questionText: string) => {
-    if (!confirm(`Are you sure you want to delete this question?\n\n"${questionText.substring(0, 100)}..."`)) {
-      return;
-    }
-
-    setDeletingQuestionId(questionId);
-    try {
-      await deleteQuestion(questionId);
-      // Reload questions list
-      await loadQuestions();
-      // Update count
-      const newCount = await getQuestionsCount();
-      setQuestionsCount(newCount);
-    } catch (error) {
-      console.error('Error deleting question:', error);
-      setErrorMessage('Failed to delete question');
-    } finally {
-      setDeletingQuestionId(null);
-    }
-  };
-
-  React.useEffect(() => {
-    loadQuestions();
-  }, []);
+  if (!user || user.email !== 'rptestprepservices@gmail.com') {
+    return (
+      <div className="min-h-screen bg-white flex items-center justify-center">
+        <div className="text-center">
+          <h1 className="text-2xl font-bold text-gray-900 mb-4">Access Denied</h1>
+          <p className="text-gray-600">You don't have permission to upload questions.</p>
+        </div>
+      </div>
+    );
+  }
 
   return (
-    <div className="min-h-screen bg-gray-50 py-8">
+    <div className="min-h-screen bg-white py-8">
       <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8">
         <div className="text-center mb-8">
-          <h1 className="text-3xl md:text-4xl font-bold text-gray-900 mb-4">
-            Upload Practice Questions
-          </h1>
-          <p className="text-lg text-gray-600">
-            Bulk upload SAT Math questions to expand your practice database
-          </p>
+          <h1 className="text-3xl font-bold text-gray-900 mb-4">Upload SAT Math Question</h1>
+          <p className="text-gray-600">Add new questions to the practice database</p>
         </div>
 
-        {/* Current Database Stats */}
-        <div className="bg-white rounded-xl shadow-lg p-6 mb-8">
-          <h2 className="text-xl font-semibold text-gray-900 mb-4">Current Database</h2>
-          <div className="bg-blue-50 p-4 rounded-lg mb-4">
-            <p className="text-sm text-blue-800">
-              <strong>Admin Access:</strong> Logged in as {user.email} | Target: 300 Hard Questions
-            </p>
+        {message && (
+          <div className={`mb-6 p-4 rounded-lg flex items-center ${
+            messageType === 'success' 
+              ? 'bg-green-50 border border-green-200 text-green-800' 
+              : 'bg-red-50 border border-red-200 text-red-800'
+          }`}>
+            {messageType === 'success' ? (
+              <CheckCircle className="h-5 w-5 mr-2" />
+            ) : (
+              <AlertCircle className="h-5 w-5 mr-2" />
+            )}
+            {message}
           </div>
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-            <div className="bg-teal-50 p-4 rounded-lg">
-              <div className="text-2xl font-bold text-teal-700">{questionsCount}</div>
-              <div className="text-sm text-teal-600">Total Questions</div>
-            </div>
-            <div className="bg-blue-50 p-4 rounded-lg">
-              <div className="text-2xl font-bold text-blue-700">8</div>
-              <div className="text-sm text-blue-600">Topics Covered</div>
-            </div>
-            <div className="bg-green-50 p-4 rounded-lg">
-              <div className="text-2xl font-bold text-green-700">3</div>
-              <div className="text-sm text-green-600">Difficulty Levels</div>
-            </div>
+        )}
+
+        <form onSubmit={handleSubmit} className="bg-white rounded-xl shadow-lg p-8 space-y-6">
+          {/* Question Type */}
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-2">Question Type</label>
+            <select
+              value={form.questionType}
+              onChange={(e) => handleInputChange('questionType', e.target.value)}
+              className="w-full p-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+            >
+              <option value="multiple_choice">Multiple Choice</option>
+              <option value="open_ended">Open Ended (Numeric Answer)</option>
+            </select>
           </div>
-        </div>
 
-        {/* Upload Instructions */}
-        <div className="bg-white rounded-xl shadow-lg p-6 mb-8">
-          <h2 className="text-xl font-semibold text-gray-900 mb-4">Upload Instructions</h2>
-          <div className="space-y-4">
-            <div className="bg-blue-50 border border-blue-200 rounded-lg p-4">
-              <h3 className="font-medium text-blue-900 mb-2">Important Notes</h3>
-              <ul className="text-sm text-blue-800 space-y-1">
-                <li>• All questions are automatically set to <strong>HARD</strong> difficulty</li>
-                <li>• Select the skill category before uploading</li>
-                <li>• Choose question type: Multiple Choice or Open-Ended</li>
-                <li>• Questions will be categorized under the selected skill</li>
-                <li>• Target: 75 questions per skill (300 total)</li>
-                <li>• Explanations are optional and not required</li>
-              </ul>
-            </div>
-            
-            <div className="flex items-start space-x-3">
-              <div className="bg-teal-100 p-2 rounded-full">
-                <FileText className="h-4 w-4 text-teal-600" />
-              </div>
-              <div>
-                <h3 className="font-medium text-gray-900">Supported Formats</h3>
-                <p className="text-sm text-gray-600">Upload CSV or JSON files with your questions</p>
-              </div>
-            </div>
-            
-            <div className="flex items-start space-x-3">
-              <div className="bg-blue-100 p-2 rounded-full">
-                <Check className="h-4 w-4 text-blue-600" />
-              </div>
-              <div>
-                <h3 className="font-medium text-gray-900">Required Fields</h3>
-                <p className="text-sm text-gray-600">
-                  <strong>Multiple Choice:</strong> questionNumber, question, optionA-D, correctAnswer (A/B/C/D)<br/>
-                  <strong>Open-Ended:</strong> questionNumber, question, correctAnswer (number)
-                </p>
-              </div>
-            </div>
+          {/* Question Text */}
+          <MathInput
+            label="Question Text"
+            value={form.question}
+            onChange={(value) => handleInputChange('question', value)}
+            placeholder="Enter the question text (use math notation like x^2, sqrt(x), etc.)"
+            showPreview={true}
+          />
 
-            <div className="flex items-start space-x-3">
-              <div className="bg-green-100 p-2 rounded-full">
-                <Download className="h-4 w-4 text-green-600" />
-              </div>
-              <div>
-                <h3 className="font-medium text-gray-900">Template Available</h3>
-                <p className="text-sm text-gray-600">Download our CSV template with mathematical notation support</p>
-                <button
-                  onClick={downloadTemplate}
-                  className="mt-2 text-teal-600 hover:text-teal-700 font-medium text-sm"
-                >
-                  Download Template →
-                </button>
-              </div>
-            </div>
-          </div>
-        </div>
+          {/* Question Image */}
+          <ImageUploadField
+            label="Question Image (Optional)"
+            field="imageUrl"
+            currentUrl={form.imageUrl}
+          />
 
-        {/* Single Question Upload Form */}
-        <div className="bg-white rounded-xl shadow-lg p-6 mb-8">
-          <h2 className="text-xl font-semibold text-gray-900 mb-6">Add New Question</h2>
-          
-          {/* Question Type Selection */}
-          <div className="mb-6">
-            <label className="block text-sm font-medium text-gray-700 mb-3">Question Type</label>
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-              <button
-                onClick={() => setSelectedQuestionType('multiple_choice')}
-                className={`p-4 rounded-lg border-2 text-left transition-all ${
-                  selectedQuestionType === 'multiple_choice'
-                    ? 'border-blue-600 bg-blue-50 text-blue-700'
-                    : 'border-gray-200 hover:border-gray-300 text-gray-700'
-                }`}
+          {/* Multiple Choice Options */}
+          {form.questionType === 'multiple_choice' && (
+            <div className="space-y-4">
+              <h3 className="text-lg font-semibold text-gray-900">Answer Options</h3>
+              
+              {['A', 'B', 'C', 'D'].map((letter, index) => (
+                <div key={letter} className="space-y-3">
+                  <MathInput
+                    label={`Option ${letter}`}
+                    value={form[`option${letter}` as keyof QuestionForm] as string}
+                    onChange={(value) => handleInputChange(`option${letter}` as keyof QuestionForm, value)}
+                    placeholder={`Enter option ${letter} (use math notation like x^2, sqrt(x), etc.)`}
+                    showPreview={true}
+                  />
+                  
+                  <ImageUploadField
+                    label={`Option ${letter} Image (Optional)`}
+                    field={`option${letter}Image`}
+                    currentUrl={form[`option${letter}Image` as keyof QuestionForm] as string}
+                  />
+                </div>
+              ))}
+            </div>
+          )}
+
+          {/* Correct Answer */}
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-2">Correct Answer</label>
+            {form.questionType === 'multiple_choice' ? (
+              <select
+                value={form.correctAnswer}
+                onChange={(e) => handleInputChange('correctAnswer', e.target.value)}
+                className="w-full p-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
               >
-                <div className="font-semibold">Multiple Choice</div>
-                <div className="text-sm text-gray-500 mt-1">A, B, C, D options</div>
-              </button>
-              <button
-                onClick={() => setSelectedQuestionType('open_ended')}
-                className={`p-4 rounded-lg border-2 text-left transition-all ${
-                  selectedQuestionType === 'open_ended'
-                    ? 'border-green-600 bg-green-50 text-green-700'
-                    : 'border-gray-200 hover:border-gray-300 text-gray-700'
-                }`}
-              >
-                <div className="font-semibold">Open-Ended</div>
-                <div className="text-sm text-gray-500 mt-1">Numeric answer</div>
-              </button>
-            </div>
+                <option value="A">A</option>
+                <option value="B">B</option>
+                <option value="C">C</option>
+                <option value="D">D</option>
+              </select>
+            ) : (
+              <input
+                type="text"
+                value={form.correctAnswer}
+                onChange={(e) => handleInputChange('correctAnswer', e.target.value)}
+                className="w-full p-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+                placeholder="Enter the numeric answer (e.g., 42, 3.14, -5)"
+              />
+            )}
           </div>
 
-          {/* Access Level Selection */}
-          <div className="mb-6">
-            <label className="block text-sm font-medium text-gray-700 mb-3">Access Level</label>
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-              <button
-                type="button"
-                onClick={() => setSelectedAccessLevel('free')}
-                className={`p-4 rounded-lg border-2 text-left transition-all ${
-                  selectedAccessLevel === 'free'
-                    ? 'border-blue-600 bg-blue-50 text-blue-700'
-                    : 'border-gray-200 hover:border-gray-300 text-gray-700'
-                }`}
-              >
-                <div className="font-semibold">Free (30 questions)</div>
-                <div className="text-sm text-gray-500 mt-1">Accessible to all users</div>
-              </button>
-              <button
-                type="button"
-                onClick={() => setSelectedAccessLevel('premium')}
-                className={`p-4 rounded-lg border-2 text-left transition-all ${
-                  selectedAccessLevel === 'premium'
-                    ? 'border-green-600 bg-green-50 text-green-700'
-                    : 'border-gray-200 hover:border-gray-300 text-gray-700'
-                }`}
-              >
-                <div className="font-semibold">Premium (270 questions)</div>
-                <div className="text-sm text-gray-500 mt-1">Requires paid subscription</div>
-              </button>
-            </div>
+          {/* Explanation */}
+          <MathInput
+            label="Explanation (Optional)"
+            value={form.explanation}
+            onChange={(value) => handleInputChange('explanation', value)}
+            placeholder="Explain how to solve this question (use math notation like x^2, sqrt(x), etc.)"
+            showPreview={true}
+          />
+
+          {/* Topic */}
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-2">Topic</label>
+            <select
+              value={form.topic}
+              onChange={(e) => handleInputChange('topic', e.target.value)}
+              className="w-full p-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+            >
+              <option value="Algebra">Algebra</option>
+              <option value="Advanced Math">Advanced Math</option>
+              <option value="Problem Solving and Data Analysis">Problem Solving and Data Analysis</option>
+              <option value="Geo/Trig">Geo/Trig</option>
+            </select>
           </div>
 
-          {/* Question Input */}
-          {selectedQuestionType && (
-            <>
-              <div className="mb-6">
-                <MathInput
-                  label="Question Text"
-                  value={questionText}
-                  onChange={setQuestionText}
-                  placeholder="Enter your question with LaTeX notation (e.g., \\frac{a}{6}x^{2} + \\frac{b}{6}x + \\frac{c}{6})"
-                />
+          {/* Difficulty */}
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-2">Difficulty</label>
+            <select
+              value={form.difficulty}
+              onChange={(e) => handleInputChange('difficulty', e.target.value)}
+              className="w-full p-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+            >
+              <option value="easy">Easy</option>
+              <option value="medium">Medium</option>
+              <option value="hard">Hard</option>
+            </select>
+          </div>
+
+          {/* Access Level */}
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-2">Access Level</label>
+            <select
+              value={form.accessLevel}
+              onChange={(e) => handleInputChange('accessLevel', e.target.value)}
+              className="w-full p-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+            >
+              <option value="free">Free</option>
+              <option value="premium">Premium</option>
+            </select>
+          </div>
+
+          {/* Preview Section */}
+          <div className="border-t pt-6">
+            <h3 className="text-lg font-semibold text-gray-900 mb-4">Preview</h3>
+            <div className="bg-gray-50 rounded-lg p-6">
+              <div className="text-lg font-medium text-gray-900 mb-4">
+                <MathRenderer>{form.question}</MathRenderer>
               </div>
-
-              {/* Multiple Choice Options */}
-              {selectedQuestionType === 'multiple_choice' && (
-                <div className="mb-6">
-                  <label className="block text-sm font-medium text-gray-700 mb-3">Answer Options</label>
-                  <p className="text-sm text-gray-600 mb-3">
-                    Choose between text (with LaTeX support) or image for each option
-                  </p>
-                  <div className="space-y-4">
-                    {['A', 'B', 'C', 'D'].map((letter, index) => (
-                      <div key={letter} className="border border-gray-200 rounded-lg p-4">
-                        <div className="flex items-center justify-between mb-3">
-                          <span className="font-medium text-gray-700">Option {letter}</span>
-                          <div className="flex space-x-2">
-                            <button
-                              type="button"
-                              onClick={() => handleOptionTypeChange(index, 'text')}
-                              className={`px-3 py-1 text-xs rounded ${
-                                optionTypes[index] === 'text'
-                                  ? 'bg-blue-600 text-white'
-                                  : 'bg-gray-200 text-gray-700 hover:bg-gray-300'
-                              }`}
-                            >
-                              Text
-                            </button>
-                            <button
-                              type="button"
-                              onClick={() => handleOptionTypeChange(index, 'image')}
-                              className={`px-3 py-1 text-xs rounded ${
-                                optionTypes[index] === 'image'
-                                  ? 'bg-green-600 text-white'
-                                  : 'bg-gray-200 text-gray-700 hover:bg-gray-300'
-                              }`}
-                            >
-                              Image
-                            </button>
-                          </div>
-                        </div>
-                        
-                        {optionTypes[index] === 'text' ? (
-                          <div>
-                            <input
-                              type="text"
-                              value={options[index]}
-                              onChange={(e) => {
-                                const newOptions = [...options];
-                                newOptions[index] = e.target.value;
-                                setOptions(newOptions);
-                              }}
-                              className="w-full p-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-teal-500 focus:border-transparent font-mono text-sm"
-                              placeholder={`Option ${letter} (supports LaTeX: \\frac{1}{2}, x^{2})`}
-                            />
-                            {options[index] && (
-                              <div className="mt-1 p-2 bg-gray-50 rounded text-sm">
-                                <MathRenderer inline>{options[index]}</MathRenderer>
-                              </div>
-                            )}
-                          </div>
-                        ) : (
-                          <div>
-                            {!optionImagePreviews[index] && !optionImageUrls[index] && (
-                              <div className="border-2 border-dashed border-gray-300 rounded-lg p-4">
-                                <div className="text-center">
-                                  <Image className="mx-auto h-8 w-8 text-gray-400 mb-2" />
-                                  <div className="flex text-sm text-gray-600 justify-center">
-                                    <label className="relative cursor-pointer bg-white rounded-md font-medium text-teal-600 hover:text-teal-500">
-                                      <span>Upload image for option {letter}</span>
-                                      <input
-                                        type="file"
-                                        className="sr-only"
-                                        accept="image/*"
-                                        onChange={(e) => handleOptionImageSelect(index, e)}
-                                      />
-                                    </label>
-                                  </div>
-                                  <p className="text-xs text-gray-500 mt-1">PNG, JPG, GIF up to 5MB</p>
-                                </div>
-                              </div>
-                            )}
-
-                            {optionImagePreviews[index] && !optionImageUrls[index] && (
-                              <div className="space-y-3">
-                                <div className="relative">
-                                  <img
-                                    src={optionImagePreviews[index]!}
-                                    alt={`Option ${letter} preview`}
-                                    className="max-w-full h-auto max-h-32 rounded-lg border border-gray-300"
-                                  />
-                                  <button
-                                    type="button"
-                                    onClick={() => handleOptionImageRemove(index)}
-                                    className="absolute top-1 right-1 bg-red-500 text-white p-1 rounded-full hover:bg-red-600"
-                                  >
-                                    <X className="h-3 w-3" />
-                                  </button>
-                                </div>
-                                <div className="flex items-center justify-between">
-                                  <div>
-                                    <p className="text-sm font-medium text-gray-900">{optionImages[index]?.name}</p>
-                                    <p className="text-sm text-gray-500">
-                                      {optionImages[index] && ImageStorageService.formatFileSize(optionImages[index]!.size)}
-                                    </p>
-                                  </div>
-                                  <button
-                                    type="button"
-                                    onClick={() => handleOptionImageUpload(index)}
-                                    disabled={optionImageUploading[index]}
-                                    className="bg-teal-600 text-white px-3 py-1 text-sm rounded hover:bg-teal-700 disabled:opacity-50 disabled:cursor-not-allowed"
-                                  >
-                                    {optionImageUploading[index] ? 'Uploading...' : 'Upload'}
-                                  </button>
-                                </div>
-                              </div>
-                            )}
-
-                            {optionImageUrls[index] && (
-                              <div className="space-y-3">
-                                <div className="relative">
-                                  <img
-                                    src={optionImageUrls[index]!}
-                                    alt={`Option ${letter}`}
-                                    className="max-w-full h-auto max-h-32 rounded-lg border border-gray-300"
-                                  />
-                                  <button
-                                    type="button"
-                                    onClick={() => handleOptionImageRemove(index)}
-                                    className="absolute top-1 right-1 bg-red-500 text-white p-1 rounded-full hover:bg-red-600"
-                                  >
-                                    <Trash2 className="h-3 w-3" />
-                                  </button>
-                                </div>
-                                <div className="bg-green-50 border border-green-200 rounded-lg p-2">
-                                  <p className="text-sm text-green-800">
-                                    ✓ Image uploaded for option {letter}
-                                  </p>
-                                </div>
-                              </div>
-                            )}
-                          </div>
-                        )}
-                      </div>
-                    ))}
-                  </div>
+              
+              {form.imageUrl && (
+                <div className="mb-4">
+                  <img
+                    src={form.imageUrl}
+                    alt="Question"
+                    className="max-w-full h-auto max-h-64 rounded border border-gray-300 mx-auto"
+                    onError={(e) => {
+                      e.currentTarget.style.display = 'none';
+                    }}
+                  />
                 </div>
               )}
 
-              {/* Open-Ended Answer Input */}
-              {selectedQuestionType === 'open_ended' && (
-                <div className="mb-6">
-                  <label className="block text-sm font-medium text-gray-700 mb-3">Correct Answer</label>
-                  <div className="max-w-xs">
-                    <input
-                      type="text"
-                      value={correctAnswer}
-                      onChange={(e) => setCorrectAnswer(e.target.value)}
-                      className="w-full p-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-teal-500 focus:border-transparent"
-                      placeholder="Enter numeric answer (e.g., 42, 3.14, -5)"
-                    />
-                    <p className="text-xs text-gray-500 mt-1">
-                      For open-ended questions, enter the exact numeric value
-                    </p>
-                  </div>
-                </div>
-              )}
-
-              {/* Multiple Choice Correct Answer Selection */}
-              {selectedQuestionType === 'multiple_choice' && (
-                <div className="mb-6">
-                  <label className="block text-sm font-medium text-gray-700 mb-3">Correct Answer</label>
-                  <p className="text-sm text-gray-600 mb-3">
-                    Select which option (A, B, C, or D) is the correct answer
-                  </p>
-                  <div className="flex space-x-3">
-                    {['A', 'B', 'C', 'D'].map((letter) => (
-                      <button
+              {form.questionType === 'multiple_choice' && (
+                <div className="space-y-2">
+                  {['A', 'B', 'C', 'D'].map((letter, index) => {
+                    const optionText = form[`option${letter}` as keyof QuestionForm] as string;
+                    const optionImage = form[`option${letter}Image` as keyof QuestionForm] as string;
+                    
+                    if (!optionText && !optionImage) return null;
+                    
+                    return (
+                      <div
                         key={letter}
-                        onClick={() => setCorrectAnswer(letter)}
-                        className={`px-4 py-2 rounded-lg border-2 font-medium transition-all ${
-                          correctAnswer === letter
-                            ? 'border-green-600 bg-green-50 text-green-700'
-                            : 'border-gray-200 hover:border-gray-300 text-gray-700'
+                        className={`p-3 rounded border ${
+                          form.correctAnswer === letter 
+                            ? 'border-green-500 bg-green-50' 
+                            : 'border-gray-200'
                         }`}
                       >
-                        {letter}
-                      </button>
-                    ))}
-                  </div>
-                </div>
-              )}
-
-              {/* Question Preview */}
-              {questionText && (
-                <div className="mb-6 p-4 bg-blue-50 border border-blue-200 rounded-lg">
-                  <h3 className="font-semibold text-blue-900 mb-2">Question Preview:</h3>
-                  <div className="bg-white p-3 rounded border">
-                    <MathRenderer>{questionText}</MathRenderer>
-                    
-                    {selectedQuestionType === 'multiple_choice' && (
-                      <div className="mt-4 space-y-3">
-                        {['A', 'B', 'C', 'D'].map((letter, index) => {
-                          const hasContent = optionTypes[index] === 'text' 
-                            ? options[index].trim() 
-                            : optionImageUrls[index];
-                          
-                          return hasContent ? (
-                            <div key={index} className="flex items-start space-x-2">
-                              <span className="font-medium text-gray-700 mt-1">
-                                {letter}.
-                              </span>
-                              <div className="flex-1">
-                                {optionTypes[index] === 'text' ? (
-                                  <MathRenderer inline>{options[index]}</MathRenderer>
-                                ) : (
-                                  <img
-                                    src={optionImageUrls[index]!}
-                                    alt={`Option ${letter}`}
-                                    className="max-w-full h-auto max-h-24 rounded border"
-                                  />
-                                )}
-                              </div>
-                            </div>
-                          ) : null;
-                        })}
-                      </div>
-                    )}
-                  </div>
-                </div>
-              )}
-
-              {/* Image Upload Section */}
-              <div className="mb-6">
-                <label className="block text-sm font-medium text-gray-700 mb-3">
-                  Question Image (Optional)
-                </label>
-                <p className="text-sm text-gray-600 mb-3">
-                  Upload graphs, diagrams, or other visual elements for your question
-                </p>
-                
-                {!imagePreview && !imageUrl && (
-                  <div className="border-2 border-dashed border-gray-300 rounded-lg p-6">
-                    <div className="text-center">
-                      <Image className="mx-auto h-12 w-12 text-gray-400 mb-4" />
-                      <div className="flex text-sm text-gray-600">
-                        <label className="relative cursor-pointer bg-white rounded-md font-medium text-teal-600 hover:text-teal-500 focus-within:outline-none focus-within:ring-2 focus-within:ring-offset-2 focus-within:ring-teal-500">
-                          <span>Upload an image</span>
-                          <input
-                            type="file"
-                            className="sr-only"
-                            accept="image/*"
-                            onChange={handleImageSelect}
-                          />
-                        </label>
-                        <p className="pl-1">or drag and drop</p>
-                      </div>
-                      <p className="text-xs text-gray-500 mt-2">
-                        PNG, JPG, GIF, SVG up to 5MB
-                      </p>
-                    </div>
-                  </div>
-                )}
-
-                {imagePreview && !imageUrl && (
-                  <div className="space-y-4">
-                    <div className="relative">
-                      <img
-                        src={imagePreview}
-                        alt="Preview"
-                        className="max-w-full h-auto max-h-64 rounded-lg border border-gray-300"
-                      />
-                      <button
-                        onClick={handleImageRemove}
-                        className="absolute top-2 right-2 bg-red-500 text-white p-1 rounded-full hover:bg-red-600"
-                      >
-                        <X className="h-4 w-4" />
-                      </button>
-                    </div>
-                    <div className="flex items-center justify-between">
-                      <div>
-                        <p className="text-sm font-medium text-gray-900">{selectedImage?.name}</p>
-                        <p className="text-sm text-gray-500">
-                          {selectedImage && ImageStorageService.formatFileSize(selectedImage.size)}
-                        </p>
-                      </div>
-                      <button
-                        onClick={handleImageUpload}
-                        disabled={imageUploading}
-                        className="bg-teal-600 text-white px-4 py-2 rounded-lg hover:bg-teal-700 disabled:opacity-50 disabled:cursor-not-allowed"
-                      >
-                        {imageUploading ? 'Uploading...' : 'Upload Image'}
-                      </button>
-                    </div>
-                  </div>
-                )}
-
-                {imageUrl && (
-                  <div className="space-y-4">
-                    <div className="relative">
-                      <img
-                        src={imageUrl}
-                        alt="Uploaded question image"
-                        className="max-w-full h-auto max-h-64 rounded-lg border border-gray-300"
-                      />
-                      <button
-                        onClick={handleImageRemove}
-                        className="absolute top-2 right-2 bg-red-500 text-white p-1 rounded-full hover:bg-red-600"
-                      >
-                        <Trash2 className="h-4 w-4" />
-                      </button>
-                    </div>
-                    <div className="bg-green-50 border border-green-200 rounded-lg p-3">
-                      <p className="text-sm text-green-800">
-                        ✓ Image uploaded successfully and will be included with the question
-                      </p>
-                    </div>
-                  </div>
-                )}
-              </div>
-
-              {/* Question Number (Optional) */}
-              <div className="mb-6">
-                <label className="block text-sm font-medium text-gray-700 mb-2">
-                  Question Number (Optional)
-                </label>
-                <input
-                  type="number"
-                  value={questionNumber || ''}
-                  onChange={(e) => setQuestionNumber(e.target.value ? parseInt(e.target.value) : null)}
-                  className="w-32 p-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-teal-500 focus:border-transparent"
-                  placeholder="1-300"
-                  min="1"
-                  max="300"
-                />
-                <p className="text-xs text-gray-500 mt-1">Leave blank for auto-numbering</p>
-              </div>
-
-              {/* Add Question Button */}
-              <button
-                onClick={handleAddQuestion}
-                disabled={!canAddQuestion()}
-                className={`w-full py-3 rounded-lg font-semibold transition-colors ${
-                  canAddQuestion()
-                    ? 'bg-teal-600 text-white hover:bg-teal-700'
-                    : 'bg-gray-300 text-gray-500 cursor-not-allowed'
-                }`}
-              >
-                Add Question to {selectedSkill}
-              </button>
-
-              {!canAddQuestion() && (
-                <p className="text-sm text-red-600 mt-2 text-center">
-                  Please fill in all required fields: skill, question type, question text, 
-                  {selectedQuestionType === 'multiple_choice' ? ' all options,' : ''} and correct answer
-                </p>
-              )}
-            </>
-          )}
-        </div>
-
-        {/* Skill Selection */}
-        <div className="bg-white rounded-xl shadow-lg p-6 mb-8">
-          <h2 className="text-xl font-semibold text-gray-900 mb-4">Select Skill Category</h2>
-          <p className="text-gray-600 mb-4">
-            Choose which skill category these questions belong to. All questions in your upload will be assigned to this skill.
-          </p>
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-            {skills.map((skill) => (
-              <button
-                key={skill}
-                onClick={() => setSelectedSkill(skill)}
-                className={`p-4 rounded-lg border-2 text-left transition-all ${
-                  selectedSkill === skill
-                    ? 'border-teal-600 bg-teal-50 text-teal-700'
-                    : 'border-gray-200 hover:border-gray-300 text-gray-700'
-                }`}
-              >
-                <div className="font-semibold">{skill}</div>
-                <div className="text-sm text-gray-500 mt-1">
-                  {skill === 'Algebra' && 'Linear equations, quadratics, systems, inequalities'}
-                  {skill === 'Advanced Math' && 'Functions, polynomials, radicals, exponentials'}
-                  {skill === 'Problem Solving and Data Analysis' && 'Statistics, probability, data interpretation'}
-                  {skill === 'Geo/Trig' && 'Geometry, trigonometry, coordinate geometry'}
-                </div>
-              </button>
-            ))}
-          </div>
-          {selectedSkill && (
-            <div className="mt-4 p-3 bg-green-50 border border-green-200 rounded-lg">
-              <p className="text-sm text-green-800">
-                ✓ Selected: <strong>{selectedSkill}</strong> - All uploaded questions will be categorized under this skill
-              </p>
-            </div>
-          )}
-        </div>
-
-        {/* Success Message */}
-        {uploadStatus === 'success' && (
-          <div className="bg-green-50 border border-green-200 rounded-xl p-6 mb-8">
-            <div className="flex items-center space-x-2 mb-2">
-              <Check className="h-5 w-5 text-green-600" />
-              <h3 className="font-semibold text-green-800">Question Added Successfully!</h3>
-            </div>
-            <p className="text-sm text-green-700">
-              Your question has been added to the {selectedSkill} question bank.
-            </p>
-          </div>
-        )}
-
-        {/* Error Message */}
-        {uploadStatus === 'error' && errorMessage && (
-          <div className="bg-red-50 border border-red-200 rounded-xl p-6 mb-8">
-            <div className="flex items-center space-x-2 mb-2">
-              <X className="h-5 w-5 text-red-600" />
-              <h3 className="font-semibold text-red-800">Error Adding Question</h3>
-            </div>
-            <p className="text-sm text-red-700">{errorMessage}</p>
-          </div>
-        )}
-
-        {/* Manage Existing Questions */}
-        <div className="bg-white rounded-xl shadow-lg p-6">
-          <h2 className="text-xl font-semibold text-gray-900 mb-6">Manage Existing Questions</h2>
-          
-          {questionsLoading ? (
-            <div className="text-center py-8">
-              <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-teal-600 mx-auto mb-4"></div>
-              <p className="text-gray-600">Loading questions...</p>
-            </div>
-          ) : questionsList.length === 0 ? (
-            <div className="text-center py-8">
-              <p className="text-gray-600">No questions found in the database.</p>
-            </div>
-          ) : (
-            <div className="overflow-x-auto">
-              <table className="min-w-full divide-y divide-gray-200">
-                <thead className="bg-gray-50">
-                  <tr>
-                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                      #
-                    </th>
-                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                      Question
-                    </th>
-                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                      Topic
-                    </th>
-                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                      Type
-                    </th>
-                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                      Answer
-                    </th>
-                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                      Image
-                    </th>
-                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                      Access
-                    </th>
-                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                      Actions
-                    </th>
-                  </tr>
-                </thead>
-                <tbody className="bg-white divide-y divide-gray-200">
-                  {questionsList.map((question, index) => (
-                    <tr key={question.id} className="hover:bg-gray-50">
-                      <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
-                        {question.question_number || index + 1}
-                      </td>
-                      <td className="px-6 py-4 text-sm text-gray-900 max-w-xs">
-                        <div className="truncate" title={question.question}>
-                          {question.question.length > 80 
-                            ? `${question.question.substring(0, 80)}...` 
-                            : question.question}
+                        <div className="flex items-start space-x-2">
+                          <span className="font-medium">{letter}.</span>
+                          <div className="flex-1">
+                            {optionImage ? (
+                              <img
+                                src={optionImage}
+                                alt={`Option ${letter}`}
+                                className="max-w-full h-auto max-h-32 rounded border border-gray-300"
+                                onError={(e) => {
+                                  e.currentTarget.style.display = 'none';
+                                }}
+                              />
+                            ) : (
+                              <MathRenderer>{optionText}</MathRenderer>
+                            )}
+                          </div>
                         </div>
-                      </td>
-                      <td className="px-6 py-4 whitespace-nowrap">
-                        <span className="px-2 py-1 text-xs font-medium bg-blue-100 text-blue-800 rounded-full">
-                          {question.topic}
-                        </span>
-                      </td>
-                      <td className="px-6 py-4 whitespace-nowrap">
-                        <span className={`px-2 py-1 text-xs font-medium rounded-full ${
-                          question.question_type === 'multiple_choice' 
-                            ? 'bg-green-100 text-green-800' 
-                            : 'bg-purple-100 text-purple-800'
-                        }`}>
-                          {question.question_type === 'multiple_choice' ? 'Multiple Choice' : 'Open-Ended'}
-                        </span>
-                      </td>
-                      <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
-                        {question.question_type === 'multiple_choice' 
-                          ? question.correct_answer 
-                          : question.correct_answer}
-                      </td>
-                      <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
-                        {question.image_url ? (
-                          <span className="text-green-600 text-xs">✓ Has Image</span>
-                        ) : (
-                          <span className="text-gray-400 text-xs">No Image</span>
-                        )}
-                      </td>
-                      <td className="px-6 py-4 whitespace-nowrap">
-                        <span className={`px-2 py-1 text-xs font-medium rounded-full ${
-                          question.access_level === 'free' ? 'bg-blue-100 text-blue-800' : 'bg-purple-100 text-purple-800'
-                        }`}>
-                          {question.access_level}
-                        </span>
-                      </td>
-                      <td className="px-6 py-4 whitespace-nowrap text-sm font-medium">
-                        <button
-                          onClick={() => handleDeleteQuestion(question.id, question.question)}
-                          disabled={deletingQuestionId === question.id}
-                          className={`text-red-600 hover:text-red-900 transition-colors ${
-                            deletingQuestionId === question.id ? 'opacity-50 cursor-not-allowed' : ''
-                          }`}
-                          title="Delete question"
-                        >
-                          {deletingQuestionId === question.id ? (
-                            <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-red-600"></div>
-                          ) : (
-                            <Trash2 className="h-4 w-4" />
-                          )}
-                        </button>
-                      </td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
+                      </div>
+                    );
+                  })}
+                </div>
+              )}
+
+              {form.explanation && (
+                <div className="mt-4 p-4 bg-blue-50 rounded border border-blue-200">
+                  <h4 className="font-semibold text-blue-900 mb-2">Explanation:</h4>
+                  <MathRenderer>{form.explanation}</MathRenderer>
+                </div>
+              )}
             </div>
-          )}
-        </div>
+          </div>
+
+          {/* Submit Button */}
+          <div className="flex justify-end">
+            <button
+              type="submit"
+              disabled={loading}
+              className="bg-blue-600 text-white px-8 py-3 rounded-lg font-semibold hover:bg-blue-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed flex items-center"
+            >
+              {loading ? (
+                <div className="animate-spin rounded-full h-5 w-5 border-b-2 border-white mr-2"></div>
+              ) : (
+                <Save className="h-5 w-5 mr-2" />
+              )}
+              {loading ? 'Uploading...' : 'Upload Question'}
+            </button>
+          </div>
+        </form>
       </div>
     </div>
   );
