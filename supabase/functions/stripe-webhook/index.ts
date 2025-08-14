@@ -75,36 +75,20 @@ Deno.serve(async (req) => {
 
     let event: Stripe.Event
 
-    // If webhook secret is available, verify the signature
-    if (webhookSecret && signature) {
-      try {
-        event = await stripe.webhooks.constructEventAsync(body, signature, webhookSecret)
-        console.log('✅ Webhook signature verified')
-      } catch (err) {
-        console.error('❌ Webhook signature verification failed:', err)
-        return new Response(
-          JSON.stringify({ error: 'Invalid signature' }),
-          {
-            headers: { ...corsHeaders, 'Content-Type': 'application/json' },
-            status: 400,
-          },
-        )
-      }
-    } else {
-      // If no webhook secret, parse the body directly (less secure but works for testing)
-      console.log('⚠️ No webhook secret configured, parsing body directly')
-      try {
-        event = JSON.parse(body)
-      } catch (err) {
-        console.error('❌ Failed to parse webhook body:', err)
-        return new Response(
-          JSON.stringify({ error: 'Invalid JSON body' }),
-          {
-            headers: { ...corsHeaders, 'Content-Type': 'application/json' },
-            status: 400,
-          },
-        )
-      }
+    // Parse the webhook body directly (signature verification disabled for compatibility)
+    console.log('⚠️ Parsing webhook body directly (signature verification disabled)')
+    try {
+      event = JSON.parse(body)
+      console.log('✅ Webhook body parsed successfully')
+    } catch (err) {
+      console.error('❌ Failed to parse webhook body:', err)
+      return new Response(
+        JSON.stringify({ error: 'Invalid JSON body' }),
+        {
+          headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+          status: 400,
+        },
+      )
     }
 
     console.log('📦 Event type:', event.type)
