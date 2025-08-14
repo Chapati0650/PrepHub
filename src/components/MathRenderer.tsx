@@ -20,14 +20,14 @@ const MathRenderer: React.FC<MathRendererProps> = ({
       .replace(/\(([^)]+)\/([^)]+)\)/g, '\\frac{$1}{$2}')
       // Handle simple fractions: a/6 → \frac{a}{6} (but be careful not to break URLs or dates)
       .replace(/([a-zA-Z0-9]+)\/([a-zA-Z0-9]+)(?![a-zA-Z0-9])/g, '\\frac{$1}{$2}')
+      // Square roots: sqrt(x) → \sqrt{x} - MUST come before exponents
+      .replace(/sqrt\(([^)]+)\)/g, '\\sqrt{$1}')
       // Exponents: x^2 → x^{2}
       .replace(/([a-zA-Z0-9\)])\^([a-zA-Z0-9]+)/g, '$1^{$2}')
       .replace(/([a-zA-Z0-9\)])\^\{([^}]+)\}/g, '$1^{$2}')
       // Subscripts: x_2 → x_{2}
       .replace(/([a-zA-Z0-9\)])_([a-zA-Z0-9]+)/g, '$1_{$2}')
       .replace(/([a-zA-Z0-9\)])_\{([^}]+)\}/g, '$1_{$2}')
-      // Square roots: sqrt(x) → \sqrt{x}
-      .replace(/sqrt\(([^)]+)\)/g, '\\sqrt{$1}')
       // Greek letters
       .replace(/\bpi\b/g, '\\pi')
       .replace(/\balpha\b/g, '\\alpha')
@@ -45,7 +45,7 @@ const MathRenderer: React.FC<MathRendererProps> = ({
 
   // Check if text contains math notation
   const containsMath = (text: string): boolean => {
-    return /\([^)]*\/[^)]*\)|[a-zA-Z0-9]+\/[a-zA-Z0-9]+|[\^_]|sqrt\(|\\[a-zA-Z]+|\bpi\b|\balpha\b|\bbeta\b|\bgamma\b|\bdelta\b|\btheta\b|<=[>=]|!=/g.test(text);
+    return /\([^)]*\/[^)]*\)|[a-zA-Z0-9]+\/[a-zA-Z0-9]+|[\^_]|sqrt\(|\\[a-zA-Z]+|\bpi\b|\balpha\b|\bbeta\b|\bgamma\b|\bdelta\b|\btheta\b|<=[>=]|!=|\+\-|degrees?/g.test(text);
   };
 
   // If no math notation detected, render as plain text
@@ -59,7 +59,7 @@ const MathRenderer: React.FC<MathRendererProps> = ({
 
   try {
     // Split text into math and non-math parts
-    const mathPattern = /(\([^)]*\/[^)]*\)|[a-zA-Z0-9]+\/[a-zA-Z0-9]+(?![a-zA-Z0-9])|[a-zA-Z0-9\)]+[\^_][a-zA-Z0-9{}]+|sqrt\([^)]+\)|\\[a-zA-Z]+|\bpi\b|\balpha\b|\bbeta\b|\bgamma\b|\bdelta\b|\btheta\b|<=[>=]|!=[>=]|\+\-|degrees?)/g;
+    const mathPattern = /(\([^)]*\/[^)]*\)|[a-zA-Z0-9]+\/[a-zA-Z0-9]+(?![a-zA-Z0-9])|[a-zA-Z0-9\)]+[\^_][a-zA-Z0-9{}]+|sqrt\([^)]+\)|\\[a-zA-Z]+|\bpi\b|\balpha\b|\bbeta\b|\bgamma\b|\bdelta\b|\btheta\b|<=[>=]|!=|\+\-|degrees?)/g;
     
     const parts = children.split(mathPattern);
     const mathMatches = children.match(mathPattern) || [];
