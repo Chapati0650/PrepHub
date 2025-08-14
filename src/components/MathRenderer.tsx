@@ -16,8 +16,16 @@ const MathRenderer: React.FC<MathRendererProps> = ({
   // Convert math notation to LaTeX
   const convertToLatex = (text: string): string => {
     return text
-      // Handle square roots FIRST, before any other processing
-      .replace(/sqrt\(([^)]+)\)/g, '\\sqrt{$1}')
+      // Handle square roots FIRST, including nested ones
+      .replace(/sqrt\(([^)]+)\)/g, (match, content) => {
+        // Recursively process the content inside sqrt
+        const processedContent = content
+          .replace(/sqrt\(([^)]+)\)/g, '\\sqrt{$1}')
+          .replace(/([a-zA-Z0-9]+)\/([a-zA-Z0-9]+)/g, '\\frac{$1}{$2}');
+        return `\\sqrt{${processedContent}}`;
+      })
+      // Handle complex fractions with square roots: 5/sqrt(34) → \frac{5}{\sqrt{34}}
+      .replace(/([a-zA-Z0-9\-]+)\/sqrt\(([^)]+)\)/g, '\\frac{$1}{\\sqrt{$2}}')
       // Handle fractions with parentheses: (a/6) → \frac{a}{6}
       .replace(/\(([^)]+)\/([^)]+)\)/g, '\\frac{$1}{$2}')
       // Handle simple fractions: a/6 → \frac{a}{6} (but be careful not to break URLs or dates)
@@ -45,7 +53,7 @@ const MathRenderer: React.FC<MathRendererProps> = ({
 
   // Check if text contains math notation
   const containsMath = (text: string): boolean => {
-    return /sqrt\(|\\sqrt|\\frac|\([^)]*\/[^)]*\)|[a-zA-Z0-9]+\/[a-zA-Z0-9]+|[\^_]|\\[a-zA-Z]+|\bpi\b|\balpha\b|\bbeta\b|\bgamma\b|\bdelta\b|\btheta\b|<=[>=]|!=|\+\-|degrees?/g.test(text);
+    return /sqrt\(|\\sqrt|\\frac|\([^)]*\/[^)]*\)|[a-zA-Z0-9\-]+\/[a-zA-Z0-9\-]+|[\^_]|\\[a-zA-Z]+|\bpi\b|\balpha\b|\bbeta\b|\bgamma\b|\bdelta\b|\btheta\b|<=[>=]|!=|\+\-|degrees?/g.test(text);
   };
 
   // If no math notation detected, render as plain text
@@ -59,7 +67,7 @@ const MathRenderer: React.FC<MathRendererProps> = ({
 
   try {
     // Split text into math and non-math parts
-    const mathPattern = /(sqrt\([^)]+\)|\\sqrt\{[^}]+\}|\\frac\{[^}]+\}\{[^}]+\}|\([^)]*\/[^)]*\)|[a-zA-Z0-9]+\/[a-zA-Z0-9]+(?![a-zA-Z0-9])|[a-zA-Z0-9\)]+[\^_][a-zA-Z0-9{}]+|\\[a-zA-Z]+|\bpi\b|\balpha\b|\bbeta\b|\bgamma\b|\bdelta\b|\btheta\b|<=[>=]|!=|\+\-|degrees?)/g;
+    const mathPattern = /(sqrt\([^)]+\)|\\sqrt\{[^}]+\}|\\frac\{[^}]+\}\{[^}]+\}|\([^)]*\/[^)]*\)|[a-zA-Z0-9\-]+\/[a-zA-Z0-9\-]+(?![a-zA-Z0-9])|[a-zA-Z0-9\)]+[\^_][a-zA-Z0-9{}]+|\\[a-zA-Z]+|\bpi\b|\balpha\b|\bbeta\b|\bgamma\b|\bdelta\b|\btheta\b|<=[>=]|!=|\+\-|degrees?)/g;
     
     const parts = children.split(mathPattern);
     const mathMatches = children.match(mathPattern) || [];
