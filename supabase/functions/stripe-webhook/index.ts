@@ -56,8 +56,8 @@ Deno.serve(async (req) => {
     
     let event: Stripe.Event
     try {
-      // Use the async version of constructEvent
-      event = await stripe.webhooks.constructEventAsync(
+      // Use the synchronous version of constructEvent
+      event = stripe.webhooks.constructEvent(
         body,
         signature,
         webhookSecret
