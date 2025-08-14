@@ -13,6 +13,7 @@ import QuestionGenerator from './pages/QuestionGenerator';
 import Learn from './pages/Learn';
 import QuestionUpload from './pages/QuestionUpload';
 import Upgrade from './pages/Upgrade'; // Import the new Upgrade page
+import QuestionManagement from './pages/QuestionManagement';
 
 function App() {
   // Replace this with your actual Google Client ID from Google Cloud Console
@@ -36,6 +37,7 @@ function App() {
                   <Route path="/learn" element={<Learn />} />
                   <Route path="/upload" element={<QuestionUpload />} />
                   <Route path="/upgrade" element={<Upgrade />} /> {/* Add the new Upgrade route */}
+                  <Route path="/manage-questions" element={<QuestionManagement />} />
                 </Routes>
               </main>
             </div>

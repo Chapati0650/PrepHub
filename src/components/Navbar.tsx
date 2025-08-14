@@ -46,7 +46,10 @@ const Navbar = () => {
     { path: '/learn', label: 'Learn' },
     ...(user ? [{ path: '/dashboard', label: 'Dashboard' }] : []),
     ...(user && !user.is_premium ? [{ path: '/upgrade', label: 'Upgrade' }] : []),
-    ...(user && isAdminUser ? [{ path: '/upload', label: 'Upload Questions' }] : []),
+    ...(user && isAdminUser ? [
+      { path: '/upload', label: 'Upload Questions' },
+      { path: '/manage-questions', label: 'Manage Questions' }
+    ] : []),
   ];
 
   return (
