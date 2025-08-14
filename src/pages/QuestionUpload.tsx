@@ -88,39 +88,51 @@ const QuestionUpload = () => {
     e.preventDefault();
     setLoading(true);
     setMessage('');
+    
+    console.log('📝 Starting question upload...');
+    console.log('📝 Form data:', form);
 
     try {
       // Validation
       if (!form.question.trim()) {
+        console.error('❌ Question text is empty');
         throw new Error('Question text is required');
       }
 
       if (form.questionType === 'multiple_choice') {
         if (!form.optionA.trim() || !form.optionB.trim() || !form.optionC.trim() || !form.optionD.trim()) {
+          console.error('❌ Missing options for multiple choice');
           throw new Error('All four options are required for multiple choice questions');
         }
         if (!['A', 'B', 'C', 'D'].includes(form.correctAnswer)) {
+          console.error('❌ Invalid correct answer for multiple choice');
           throw new Error('Correct answer must be A, B, C, or D for multiple choice questions');
         }
       } else {
         if (!form.correctAnswer.trim()) {
+          console.error('❌ Missing correct answer for open ended');
           throw new Error('Correct answer is required for open-ended questions');
         }
       }
 
+      console.log('✅ Validation passed');
+      
       // Get the next question number
+      console.log('🔢 Getting next question number...');
       const { data: maxQuestionData, error: maxError } = await supabase
         .from('questions')
         .select('question_number')
         .order('question_number', { ascending: false })
         .limit(1)
-        .single();
+        .maybeSingle();
 
-      if (maxError && maxError.code !== 'PGRST116') {
+      if (maxError) {
+        console.error('❌ Error getting max question number:', maxError);
         throw maxError;
       }
 
       const nextQuestionNumber = (maxQuestionData?.question_number || 0) + 1;
+      console.log('🔢 Next question number:', nextQuestionNumber);
 
       // Prepare question data
       const questionData = {
@@ -145,14 +157,17 @@ const QuestionUpload = () => {
         is_active: true
       };
 
+      console.log('💾 Inserting question data:', questionData);
       const { error } = await supabase
         .from('questions')
         .insert(questionData);
 
       if (error) {
+        console.error('❌ Database insert error:', error);
         throw error;
       }
 
+      console.log('✅ Question uploaded successfully!');
       setMessage(`Question #${nextQuestionNumber} uploaded successfully!`);
       setMessageType('success');
       
@@ -178,7 +193,9 @@ const QuestionUpload = () => {
 
     } catch (error) {
       console.error('Upload error:', error);
-      setMessage(error instanceof Error ? error.message : 'Failed to upload question');
+      const errorMessage = error instanceof Error ? error.message : 'Failed to upload question';
+      console.error('❌ Final error message:', errorMessage);
+      setMessage(errorMessage);
       setMessageType('error');
     } finally {
       setLoading(false);
