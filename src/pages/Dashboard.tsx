@@ -291,68 +291,6 @@ const Dashboard = () => {
         <div className="mt-12 text-center">
           <h2 className="text-2xl font-bold text-gray-900 mb-8">Quick Actions</h2>
           
-          {/* Manual Refresh Button for debugging */}
-          <div className="mb-6">
-            <div className="flex gap-4 justify-center mb-4">
-              <button
-                onClick={async () => {
-                  console.log('🧪 Updating premium status directly...');
-                  try {
-                    // Update premium status directly using Supabase client
-                    const { data, error } = await supabase
-                      .from('users')
-                      .update({ is_premium: true })
-                      .eq('id', user?.id)
-                      .select('is_premium')
-                      .single();
-                    
-                    if (error) {
-                      console.error('❌ Database update error:', error);
-                      alert('❌ Failed to update premium status: ' + error.message);
-                    } else {
-                      console.log('✅ Premium status updated:', data);
-                      alert('✅ Premium status updated! Refreshing page...');
-                      window.location.reload();
-                    }
-                  } catch (error) {
-                    console.error('❌ Premium update failed:', error);
-                    alert('❌ Premium update failed: ' + error.message);
-                  }
-                }}
-                className="bg-green-600 text-white px-4 py-2 rounded-lg font-medium hover:bg-green-700 transition-colors text-sm"
-              >
-                🧪 Activate Premium
-              </button>
-            <button
-              onClick={async () => {
-                console.log('🔄 Manual refresh triggered...');
-                setLoading(true);
-                try {
-                  const [progress, sessions, questionsCount] = await Promise.all([
-                    getUserProgress(),
-                    getRecentSessions(),
-                    getQuestionsCount()
-                  ]);
-                  
-                  setUserProgress(progress);
-                  setRecentSessions(sessions);
-                  setTotalQuestionsAvailable(questionsCount);
-                  setLastRefresh(Date.now());
-                  console.log('✅ Manual refresh complete');
-                } catch (error) {
-                  console.error('❌ Manual refresh failed:', error);
-                } finally {
-                  setLoading(false);
-                }
-              }}
-              className="bg-gray-500 text-white px-4 py-2 rounded-lg font-medium hover:bg-gray-600 transition-colors text-sm"
-            >
-              🔄 Refresh Data
-            </button>
-            </div>
-            <p className="text-xs text-gray-500 mt-1">Last updated: {new Date(lastRefresh).toLocaleTimeString()}</p>
-          </div>
-          
           <div className="flex flex-col sm:flex-row gap-4 justify-center">
             <button
               onClick={() => navigate('/practice')}
